@@ -1,0 +1,17 @@
+GLOBAL {
+    IP_BIND      = "127.0.0.1"
+    IP_ADVERTISE = "127.0.0.1"
+
+    SERVER_CERT  = "./test/test_server_cert.pem"
+    SERVER_KEY   = "./test/test_server_key.pem"
+
+    LOGDIR           = "./tmp"
+    LOG_LEVEL        = "ERROR"
+    LOG_PREFIX_WIDTH = 51
+    LOG_APPEND       = true
+}
+
+anyname {
+    MAX_BACKUPS = 3
+    ROTATE = "@midnight"
+}
