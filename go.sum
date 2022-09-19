@@ -7,6 +7,7 @@ github.com/alecthomas/kong-hcl v1.0.1 h1:f4svdFpEoNUwlpZj57CvfhzSnSfP/KBzMDETlwa
 github.com/alecthomas/kong-hcl v1.0.1/go.mod h1:6Y+MaMTZ/KQe9Qme6aSlKtql65FJE0/1O+Mu56C6UgQ=
 github.com/alecthomas/repr v0.0.0-20210801044451-80ca428c5142 h1:8Uy0oSf5co/NZXje7U1z8Mpep++QJOldL2hs/sBQf48=
 github.com/alecthomas/repr v0.0.0-20210801044451-80ca428c5142/go.mod h1:2kn6fqh/zIyPLmm3ugklbEi5hg5wS435eygvNfaDQL8=
+github.com/apparentlymart/go-dump v0.0.0-20180507223929-23540a00eaa3 h1:ZSTrOEhiM5J5RFxEaFvMZVEAM1KvT1YzbEOwB2EAGjA=
 github.com/apparentlymart/go-textseg/v13 v13.0.0 h1:Y+KvPE1NYz0xl601PVImeQfFyEy6iT90AvPUL1NNfNw=
 github.com/apparentlymart/go-textseg/v13 v13.0.0/go.mod h1:ZK2fH7c4NqDTLtiYLvIkEghdlcqw7yxLeM89kiTRPUo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

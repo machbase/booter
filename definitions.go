@@ -14,84 +14,45 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
-	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
-type EnvContext struct {
-	Variables map[string]cty.Value
-	Functions map[string]function.Function
+type Definition struct {
+	Id       string            `hcl:"id,label"`
+	Priority int               `hcl:"priority,optional"`
+	Disabled bool              `hcl:"disabled,optional"`
+	Prefix   string            `hcl:"prefix,optional"`
+	Config   *ConfigDefinition `hcl:",block"`
 }
 
-type anyhcl struct {
-	Remains any `hcl:",remain"`
+type ConfigDefinition struct {
+	Name    string `hcl:"name,label"`
+	Remains any    `hcl:",remain"`
 }
 
-func LoadEnvContext(path string) (*EnvContext, error) {
+func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Definition, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "loadModuleConfig read file")
 	}
 
-	env := &anyhcl{}
-	if err := hclsimple.Decode(path, content, nil, env); err != nil {
-		return nil, err
-	}
-
-	body, ok := env.Remains.(*hclsyntax.Body)
-	if !ok {
-		return nil, errors.New("invalid hcl syntax")
-	}
-
-	vars := make(map[string]cty.Value)
-	for _, block := range body.Blocks {
-		obj := make(map[string]cty.Value)
-		for _, attr := range block.Body.Attributes {
-			name, value := _eval_attribute(attr, nil)
-			obj[name] = value
-		}
-		vars[block.Type] = cty.ObjectVal(obj)
-	}
-
-	rt := &EnvContext{
-		Variables: vars,
-		Functions: map[string]function.Function{
-			"env":    GetEnvFunc,
-			"env2":   GetEnv2Func,
-			"upper":  stdlib.UpperFunc,
-			"lower":  stdlib.LowerFunc,
-			"min":    stdlib.MinFunc,
-			"max":    stdlib.MaxFunc,
-			"strlen": stdlib.StrlenFunc,
-			"substr": stdlib.SubstrFunc,
-		},
-	}
-	return rt, nil
-}
-
-type moduleConf2Pass struct {
-	Modules []*Definition `hcl:"module,block"`
-	Remains hcl.Body      `hcl:",remain"`
-}
-
-func loadModuleConfig(envCtx *EnvContext, path string, args []string) []*Definition {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
+	////////////////////////////////////////////////////////
+	// module을 제외한 block들을 모두 변수 정의로 간주하고 읽어들인다.
 	pass1Ctx := &hcl.EvalContext{}
 	if envCtx != nil {
 		pass1Ctx.Variables = envCtx.Variables
 		pass1Ctx.Functions = envCtx.Functions
 	}
+	type anyhcl struct {
+		Remains any `hcl:",remain"`
+	}
 	pass1 := &anyhcl{}
 	if err := hclsimple.Decode(path, content, pass1Ctx, pass1); err != nil {
-		panic(errors.Wrap(err, "LoadModuleConf-pass1"))
+		return nil, errors.Wrap(err, "loadModuleConfig pass1")
 	}
 
 	body, ok := pass1.Remains.(*hclsyntax.Body)
 	if !ok {
-		panic(errors.New("invalid hcl syntax"))
+		return nil, errors.Wrap(err, "loadModuleConfig invalid syntax")
 	}
 
 	vars := make(map[string]cty.Value)
@@ -106,26 +67,27 @@ func loadModuleConfig(envCtx *EnvContext, path string, args []string) []*Definit
 		}
 		vars[block.Type] = cty.ObjectVal(obj)
 	}
-
+	////////////////////////////////////////////////////////
+	// module block을 읽을 때 적용할 context를 정의한다.
 	ctx := pass1Ctx.NewChild()
 	ctx.Variables = vars
 
-	pass2 := &moduleConf2Pass{}
-	if err := hclsimple.Decode(path, content, ctx, pass2); err != nil {
-		panic(errors.Wrap(err, "LoadModuleConf-pass2"))
+	////////////////////////////////////////////////////////
+	// module block들을 읽어들인다.
+	type moduleConf2Pass struct {
+		Modules []*Definition `hcl:"module,block"`
+		Remains hcl.Body      `hcl:",remain"`
 	}
 
-	currentLocation := ""
-	defer func() {
-		ex := recover()
-		if ex != nil {
-			if err, ok := ex.(error); ok {
-				panic(errors.Wrapf(err, "at %s", currentLocation))
-			} else {
-				panic(fmt.Errorf("at %s, %v", currentLocation, ex))
-			}
-		}
-	}()
+	// https://hcl.readthedocs.io/en/latest/go_decoding_hcldec.html
+	// spec := hcldec.ObjectSpec{
+	// 	"module": &hcldec.BlockMapSpec{},
+	// }
+
+	pass2 := &moduleConf2Pass{}
+	if err := hclsimple.Decode(path, content, ctx, pass2); err != nil {
+		return nil, errors.Wrap(err, "loadModuleConfig pass2")
+	}
 
 	enabledDefs := make([]*Definition, 0)
 	for _, mod := range pass2.Modules {
@@ -134,60 +96,68 @@ func loadModuleConfig(envCtx *EnvContext, path string, args []string) []*Definit
 		}
 		md := getBootFactory(mod.Id)
 		if md == nil {
-			panic(fmt.Errorf("module not found: %s", mod.Id))
+			return nil, fmt.Errorf("module factory not found: %s", mod.Id)
 		}
 		mdCfg := md.NewConfig()
+		if mdCfg == nil {
+			// config가 정의되지 않은 module
+			enabledDefs = append(enabledDefs, mod)
+			continue
+		}
 
-		currentLocation = fmt.Sprintf("module: %s config-type: %T", mod.Id, mdCfg)
 		mdCfgRef := reflect.ValueOf(mdCfg)
 		if mdCfgRef.Kind() == reflect.Pointer {
 			mdCfgRef = reflect.Indirect(mdCfgRef)
 		}
 
-		attr := mod.Config.(*hcl.Attribute)
-		val, err := attr.Expr.Value(ctx)
-		if err != nil {
-			panic(err)
-		}
-		iter := val.ElementIterator()
-		for iter.Next() {
-			k, v := iter.Element()
-			snakeFieldName := k.AsString()
-			currentLocation = fmt.Sprintf("%s '%s'", mod.Id, snakeFieldName)
-
-			fieldName := toCamelCase(snakeFieldName, true)
-			fieldRef := mdCfgRef.FieldByName(fieldName)
-
-			if fieldRef.IsValid() && fieldRef.CanSet() {
-				_set_reflect_cty(fieldName, &currentLocation, fieldRef, v)
-			} else {
-				panic(errors.New("unknown field"))
+		fmt.Printf("==> %#v\n", mod.Config)
+		/*
+			attr := mod.Config.(*hcl.Attribute)
+			val, diagnostic := attr.Expr.Value(ctx)
+			if diagnostic != nil {
+				return nil, errors.New(diagnostic.Error())
 			}
-		}
+			iter := val.ElementIterator()
+			for iter.Next() {
+				k, v := iter.Element()
+				snakeFieldName := k.AsString()
+				currentLocation = fmt.Sprintf("%s '%s'", mod.Id, snakeFieldName)
 
-		// command line arguments
-		if len(mod.Prefix) > 0 {
-			prefix := fmt.Sprintf("--%s", mod.Prefix)
-			for i, arg := range args {
-				if strings.HasPrefix(arg, prefix) {
-					snakeFieldName := arg[len(prefix):]
-					fieldName := toCamelCase(snakeFieldName, true)
-					fieldRef := mdCfgRef.FieldByName(fieldName)
+				fieldName := toCamelCase(snakeFieldName, true)
+				fieldRef := mdCfgRef.FieldByName(fieldName)
 
-					if fieldRef.IsValid() && fieldRef.CanSet() {
-						_set_reflect_flag(fieldName, fieldRef, args, i)
-					} else {
-						panic(fmt.Errorf("unknown flag: %s", arg))
-					}
+				if fieldRef.IsValid() && fieldRef.CanSet() {
+					_set_reflect_cty(fieldName, &currentLocation, fieldRef, v)
+				} else {
+					panic(errors.New("unknown field"))
 				}
 			}
-		}
-		// set materialized config
-		mod.Config = mdCfg
+
+			// command line arguments
+			if len(mod.Prefix) > 0 {
+				prefix := fmt.Sprintf("--%s", mod.Prefix)
+				for i, arg := range args {
+					if strings.HasPrefix(arg, prefix) {
+						snakeFieldName := arg[len(prefix):]
+						fieldName := toCamelCase(snakeFieldName, true)
+						fieldRef := mdCfgRef.FieldByName(fieldName)
+
+						if fieldRef.IsValid() && fieldRef.CanSet() {
+							_set_reflect_flag(fieldName, fieldRef, args, i)
+						} else {
+							panic(fmt.Errorf("unknown flag: %s", arg))
+						}
+					}
+				}
+
+				// set materialized config
+				mod.Config = mdCfg
+			}
+		*/
 		enabledDefs = append(enabledDefs, mod)
 	}
 
-	return enabledDefs
+	return enabledDefs, nil
 }
 
 func _eval_attribute(attr *hclsyntax.Attribute, ctx *hcl.EvalContext) (string, cty.Value) {

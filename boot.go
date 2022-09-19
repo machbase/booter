@@ -48,14 +48,6 @@ const (
 	Stop
 )
 
-type Definition struct {
-	Id       string `hcl:"id,label"`
-	Priority int    `hcl:"priority,optional"`
-	Disabled bool   `hcl:"disabled,optional"`
-	Prefix   string `hcl:"prefix,optional"`
-	Config   any    `hcl:"config"`
-}
-
 func New(configDir string, args []string) (Boot, error) {
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
@@ -90,7 +82,10 @@ func NewWithFiles(args []string, envfile string, files ...string) (Boot, error) 
 
 	cfgs := make([]*Definition, 0)
 	for _, file := range files {
-		cs := loadModuleConfig(b.envCtx, file, args)
+		cs, err := loadModuleConfig(b.envCtx, file, args)
+		if err != nil {
+			return nil, err
+		}
 		cfgs = append(cfgs, cs...)
 	}
 	sort.Slice(cfgs, func(i, j int) bool {

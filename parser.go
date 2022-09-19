@@ -42,6 +42,9 @@ func parse0(envCtx *EnvContext, filename string, content []byte, target any) err
 		pass1Ctx.Variables = envCtx.Variables
 		pass1Ctx.Functions = envCtx.Functions
 	}
+	type anyhcl struct {
+		Remains any `hcl:",remain"`
+	}
 	pass1 := &anyhcl{}
 	if err := hclsimple.Decode(filename, content, pass1Ctx, pass1); err != nil {
 		return errors.Wrap(err, "Parser-pass1")
