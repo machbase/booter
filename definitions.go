@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
@@ -17,11 +18,11 @@ import (
 )
 
 type Definition struct {
-	Id       string            `hcl:"id,label"`
-	Priority int               `hcl:"priority,optional"`
-	Disabled bool              `hcl:"disabled,optional"`
-	Prefix   string            `hcl:"prefix,optional"`
-	Config   *ConfigDefinition `hcl:",block"`
+	Id       string `hcl:"id,label"`
+	Priority int    `hcl:"priority,optional"`
+	Disabled bool   `hcl:"disabled,optional"`
+	Prefix   string `hcl:"prefix,optional"`
+	Config   any    `hcl:",block"`
 }
 
 type ConfigDefinition struct {
@@ -80,9 +81,36 @@ func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Defini
 	}
 
 	// https://hcl.readthedocs.io/en/latest/go_decoding_hcldec.html
-	// spec := hcldec.ObjectSpec{
-	// 	"module": &hcldec.BlockMapSpec{},
-	// }
+	spec := hcldec.ObjectSpec{
+		"id": &hcldec.AttrSpec{
+			Name: "id",
+			Type: cty.String,
+		},
+		"priority": &hcldec.AttrSpec{
+			Name: "priority",
+			Type: cty.Number,
+		},
+		"disabled": &hcldec.AttrSpec{
+			Name: "disabled",
+			Type: cty.Bool,
+		},
+		"prefix": &hcldec.AttrSpec{
+			Name: "prefix",
+			Type: cty.String,
+		},
+		/*
+			Id       string            `hcl:"id,label"`
+			Priority int               `hcl:"priority,optional"`
+			Disabled bool              `hcl:"disabled,optional"`
+			Prefix   string            `hcl:"prefix,optional"`
+			Config   *ConfigDefinition `hcl:",block"`
+		*/
+	}
+	val, diag := hcldec.Decode(body, spec, ctx)
+	if diag.HasErrors() {
+		return nil, errors.New(diag.Error())
+	}
+	fmt.Printf("-----> %#v\n", val)
 
 	pass2 := &moduleConf2Pass{}
 	if err := hclsimple.Decode(path, content, ctx, pass2); err != nil {
