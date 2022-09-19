@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
@@ -18,16 +17,16 @@ import (
 )
 
 type Definition struct {
-	Id       string `hcl:"id,label"`
-	Priority int    `hcl:"priority,optional"`
-	Disabled bool   `hcl:"disabled,optional"`
-	Prefix   string `hcl:"prefix,optional"`
-	Config   any    `hcl:",block"`
+	Id       string           `hcl:"id,label"`
+	Priority int              `hcl:"priority,optional"`
+	Disabled bool             `hcl:"disabled,optional"`
+	Prefix   string           `hcl:"prefix,optional"`
+	Config   ConfigDefinition `cty:"config,optional"`
 }
 
 type ConfigDefinition struct {
-	Name    string `hcl:"name,label"`
-	Remains any    `hcl:",remain"`
+	// Name    string `hcl:"name,label"`
+	Remains hcl.Body `hcl:",remain"`
 }
 
 func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Definition, error) {
@@ -80,38 +79,6 @@ func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Defini
 		Remains hcl.Body      `hcl:",remain"`
 	}
 
-	// https://hcl.readthedocs.io/en/latest/go_decoding_hcldec.html
-	spec := hcldec.ObjectSpec{
-		"id": &hcldec.AttrSpec{
-			Name: "id",
-			Type: cty.String,
-		},
-		"priority": &hcldec.AttrSpec{
-			Name: "priority",
-			Type: cty.Number,
-		},
-		"disabled": &hcldec.AttrSpec{
-			Name: "disabled",
-			Type: cty.Bool,
-		},
-		"prefix": &hcldec.AttrSpec{
-			Name: "prefix",
-			Type: cty.String,
-		},
-		/*
-			Id       string            `hcl:"id,label"`
-			Priority int               `hcl:"priority,optional"`
-			Disabled bool              `hcl:"disabled,optional"`
-			Prefix   string            `hcl:"prefix,optional"`
-			Config   *ConfigDefinition `hcl:",block"`
-		*/
-	}
-	val, diag := hcldec.Decode(body, spec, ctx)
-	if diag.HasErrors() {
-		return nil, errors.New(diag.Error())
-	}
-	fmt.Printf("-----> %#v\n", val)
-
 	pass2 := &moduleConf2Pass{}
 	if err := hclsimple.Decode(path, content, ctx, pass2); err != nil {
 		return nil, errors.Wrap(err, "loadModuleConfig pass2")
@@ -138,7 +105,7 @@ func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Defini
 			mdCfgRef = reflect.Indirect(mdCfgRef)
 		}
 
-		fmt.Printf("==> %#v\n", mod.Config)
+		fmt.Printf(" each module ==> %#v\n", mod.Config)
 		/*
 			attr := mod.Config.(*hcl.Attribute)
 			val, diagnostic := attr.Expr.Value(ctx)

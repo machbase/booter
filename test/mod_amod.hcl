@@ -1,7 +1,7 @@
 
 module "github.com/amod" {
     priority = 100
-    config "default" {
+    config = {
         TcpConfig = {
             ListenAddress    = "${GLOBAL.IP_BIND}:1884"
             AdvertiseAddress = "${GLOBAL.IP_ADVERTISE}:1884"
