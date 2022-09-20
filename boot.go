@@ -30,10 +30,11 @@ type boot struct {
 }
 
 type wrapper struct {
-	id    string
-	real  Bootable
-	conf  any
-	state State
+	id         string
+	definition *Definition
+	real       Bootable
+	conf       any
+	state      State
 }
 
 type State int
@@ -41,13 +42,13 @@ type State int
 const (
 	None State = iota
 	PreStart
-	PostStart
-	Running
+	Starting
+	Run
 	Stopping
 	Stop
 )
 
-func New(configDir string, args []string) (Boot, error) {
+func New(configDir string) (Boot, error) {
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid config directory")
@@ -60,10 +61,10 @@ func New(configDir string, args []string) (Boot, error) {
 		}
 		files = append(files, filepath.Join(configDir, file.Name()))
 	}
-	return NewWithFiles(files, args)
+	return NewWithFiles(files)
 }
 
-func NewWithFiles(files []string, args []string) (Boot, error) {
+func NewWithFiles(files []string) (Boot, error) {
 	b := &boot{}
 
 	definitions, err := LoadDefinitions(files)
@@ -76,7 +77,6 @@ func NewWithFiles(files []string, args []string) (Boot, error) {
 
 type Hook map[string]func()
 
-var PostStartHook map[string]func()
 var PreStartHook map[string]func()
 var PreStopHook map[string]func()
 
@@ -85,42 +85,53 @@ func (this *boot) Startup() error {
 		if def.Disabled {
 			continue
 		}
-
+		// find factory
 		fact := getBootFactory(def.Id)
 		if fact == nil {
 			return fmt.Errorf("module %s is not found", def.Id)
 		}
+		// create config
 		config := fact.NewConfig()
-		err := EvalObject(fmt.Sprintf("%T", config), config, def.Config)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("config %T", config))
+		objName := fmt.Sprintf("%T", config)
+		if strings.HasPrefix(objName, "*") {
+			objName = objName[1:]
 		}
+		// evalute config values
+		err := EvalObject(objName, config, def.Config)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("config %s", objName))
+		}
+		// create instance
 		mod, err := fact.NewInstance(config)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("instance %s", def.Id))
 		}
 		wrap := wrapper{
-			id:    def.Id,
-			real:  mod,
-			conf:  config,
-			state: None,
+			id:         def.Id,
+			definition: def,
+			real:       mod,
+			conf:       config,
+			state:      None,
 		}
 		this.wrappers = append(this.wrappers, wrap)
+	}
 
+	// pre-start
+	for _, wrap := range this.wrappers {
 		wrap.state = PreStart
-		if hook, ok := PreStartHook[def.Id]; ok {
+		if hook, ok := PreStartHook[wrap.id]; ok {
 			hook()
 		}
+	}
 
-		err = mod.Start()
+	// start & post-start
+	for _, wrap := range this.wrappers {
+		wrap.state = Starting
+		err := wrap.real.Start()
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("mod start %s", def.Id))
+			return errors.Wrap(err, fmt.Sprintf("mod start %s", wrap.id))
 		}
-		wrap.state = PostStart
-		if hook, ok := PostStartHook[def.Id]; ok {
-			hook()
-		}
-		wrap.state = Running
+		wrap.state = Run
 	}
 	return nil
 }

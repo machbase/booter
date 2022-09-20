@@ -20,7 +20,6 @@ type Definition struct {
 	Id       string
 	Priority int
 	Disabled bool
-	Prefix   string
 	Config   cty.Value
 }
 
@@ -56,6 +55,7 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 	functions := map[string]function.Function{
 		"env":    GetEnvFunc,
 		"env2":   GetEnv2Func,
+		"flag":   GetFlagFunc,
 		"upper":  stdlib.UpperFunc,
 		"lower":  stdlib.LowerFunc,
 		"min":    stdlib.MinFunc,
@@ -87,7 +87,6 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 		Attributes: []hcl.AttributeSchema{
 			{Name: "priority", Required: false},
 			{Name: "disabled", Required: false},
-			{Name: "prefix", Required: false},
 		},
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "config", LabelNames: []string{}},
@@ -114,9 +113,7 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 			case "priority":
 				moduleDef.Priority = PriorityFromCty(value)
 			case "disabled":
-				moduleDef.Disabled = BoolFromCty(value)
-			case "prefix":
-				moduleDef.Prefix = StringFromCty(value)
+				moduleDef.Disabled, _ = BoolFromCty(value)
 			}
 		}
 		for _, c := range content.Blocks {
@@ -242,8 +239,12 @@ func EvalReflectValue(refName string, ref reflect.Value, value cty.Value) error 
 			return fmt.Errorf("%s should be string", refName)
 		}
 	case reflect.Bool:
-		if value.Type() == cty.Bool {
-			ref.SetBool(value.True())
+		if value.Type() == cty.Bool || value.Type() == cty.String {
+			if v, err := BoolFromCty(value); err != nil {
+				return err
+			} else {
+				ref.SetBool(v)
+			}
 		} else {
 			return fmt.Errorf("%s should be bool", refName)
 		}

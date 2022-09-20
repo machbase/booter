@@ -16,6 +16,10 @@ func IntFromCty(value cty.Value) (int, error) {
 		f := value.AsBigFloat()
 		l, _ := f.Int64()
 		return int(l), nil
+	case cty.String:
+		s := value.AsString()
+		l, err := strconv.ParseInt(s[0:len(s)-1], 10, 32)
+		return int(l), err
 	default:
 		return 0, fmt.Errorf("value is not a number, %s", value.Type())
 	}
@@ -39,7 +43,12 @@ func Int64FromCty(value cty.Value) (int64, error) {
 			l, err := strconv.ParseInt(s[0:len(s)-1], 10, 64)
 			return l * int64(time.Hour), err
 		} else {
-			return 0, fmt.Errorf("value is not a number-compatible, %s", value.Type())
+			s := value.AsString()
+			if l, err := strconv.ParseInt(s, 10, 64); err == nil {
+				return int64(l), err
+			} else {
+				return 0, fmt.Errorf("value is not a number-compatible, %s", value.Type())
+			}
 		}
 	default:
 		return 0, fmt.Errorf("value is not a number, %s", value.Type())
@@ -64,7 +73,12 @@ func Uint64FromCty(value cty.Value) (uint64, error) {
 			l, err := strconv.ParseInt(s[0:len(s)-1], 10, 64)
 			return uint64(l) * uint64(time.Hour), err
 		} else {
-			return 0, fmt.Errorf("value is not a number-compatible, %s", value.Type())
+			s := value.AsString()
+			if l, err := strconv.ParseInt(s, 10, 64); err == nil {
+				return uint64(l), err
+			} else {
+				return 0, fmt.Errorf("value is not a number-compatible, %s", value.Type())
+			}
 		}
 	default:
 		return 0, fmt.Errorf("value is not a number, %s", value.Type())
@@ -82,8 +96,23 @@ func PriorityFromCty(value cty.Value) int {
 	}
 }
 
-func BoolFromCty(value cty.Value) bool {
-	return value.True()
+func BoolFromCty(value cty.Value) (bool, error) {
+	switch value.Type() {
+	case cty.Bool:
+		return value.True(), nil
+	case cty.String:
+		s := value.AsString()
+		switch strings.ToLower(s) {
+		case "true", "t", "yes", "y":
+			return true, nil
+		case "false", "f", "no", "n":
+			return false, nil
+		default:
+			return false, fmt.Errorf("%s is not bool compatible", s)
+		}
+	default:
+		return false, fmt.Errorf("value is not a bool, %s", value.Type())
+	}
 }
 
 func StringFromCty(value cty.Value) string {
@@ -146,7 +175,11 @@ func toSnakeCase(s string) string {
 		s = a
 	}
 
-	snake := matchFirstCap.ReplaceAllString(s, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	snake := matchFirstCap.ReplaceAllString(s, "${1}-${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}-${2}")
 	return strings.ToLower(snake)
+}
+
+func toFlagName(prefix, name string) string {
+	return prefix + "-" + toSnakeCase(name)
 }

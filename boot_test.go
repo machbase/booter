@@ -52,7 +52,12 @@ func TestParser(t *testing.T) {
 }
 
 func TestBoot(t *testing.T) {
-	b, err := booter.New("./test", []string{"--logging-default-enable-source-location"})
+	os.Args = []string{
+		"--logging-default-level", "WARN",
+		"--logging-default-enable-source-location", "true",
+		"--logging-default-prefix-width", "30",
+	}
+	b, err := booter.New("./test")
 	assert.Nil(t, err)
 
 	err = b.Startup()
@@ -78,8 +83,8 @@ func TestBoot(t *testing.T) {
 	assert.Equal(t, "@midnight", bconf.RotateSchedule)
 	assert.Equal(t, 3, bconf.MaxBackups)
 	assert.Equal(t, 3, len(bconf.Levels))
-	assert.Equal(t, 51, bconf.DefaultPrefixWidth)
-	assert.Equal(t, "ERROR", bconf.DefaultLevel)
+	assert.Equal(t, 30, bconf.DefaultPrefixWidth)
+	assert.Equal(t, "WARN", bconf.DefaultLevel)
 	assert.Equal(t, true, bconf.DefaultEnableSourceLocation)
 }
 
