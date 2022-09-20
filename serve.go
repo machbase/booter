@@ -23,6 +23,10 @@ var Server Boot
 var conf *Config
 var bootlog *log.Logger
 
+func init() {
+	bootlog = log.New(os.Stdout, "booter", log.LstdFlags|log.Lmsgprefix)
+}
+
 func Main() {
 	conf = &Config{
 		Daemon:      false,
@@ -35,7 +39,7 @@ func Main() {
 			continue
 		}
 		switch os.Args[i] {
-		case "--daemon":
+		case "--daemon", "-d":
 			conf.Daemon = true
 		case "--bootlog":
 			conf.BootlogFile = os.Args[i+1]
@@ -43,13 +47,13 @@ func Main() {
 			conf.PidFile = os.Args[i+1]
 		case "--pname":
 			conf.Pname = os.Args[i+1]
-		case "--config-dir":
+		case "--config-dir", "-c":
 			conf.ConfDir = os.Args[i+1]
 		}
 	}
 
 	if len(conf.ConfDir) == 0 {
-		panic(errors.New("config-dir required"))
+		panic(errors.New("--config-dir required"))
 	}
 
 	var writer io.Writer
@@ -68,6 +72,7 @@ func Main() {
 		pfile.WriteString(fmt.Sprintf("%d", os.Getpid()))
 		pfile.Close()
 	}
+
 	if conf.Daemon {
 		Daemonize(conf.BootlogFile, conf.PidFile, func() { Serve(conf) })
 	} else {

@@ -15,23 +15,27 @@ var AmodId = "github.com/amod"
 var BmodId = "github.com/bmod"
 
 func TestMain(m *testing.M) {
+	os.Args = []string{
+		"--logging-default-level", "WARN",
+		"--logging-default-enable-source-location", "true",
+		"--logging-default-prefix-width", "30",
+	}
+
 	booter.Register(AmodId,
-		func() any {
+		func() *AmodConf {
 			return new(AmodConf)
 		},
-		func(anyconf any) (booter.Bootable, error) {
-			conf := anyconf.(*AmodConf)
+		func(conf *AmodConf) (booter.Bootable, error) {
 			instance := &Amod{
 				conf: conf,
 			}
 			return instance, nil
 		})
 	booter.Register(BmodId,
-		func() any {
+		func() *BmodConf {
 			return new(BmodConf)
 		},
-		func(anyconf any) (booter.Bootable, error) {
-			conf := anyconf.(*BmodConf)
+		func(conf *BmodConf) (booter.Bootable, error) {
 			instance := &Bmod{
 				conf: *conf,
 			}
@@ -52,11 +56,6 @@ func TestParser(t *testing.T) {
 }
 
 func TestBoot(t *testing.T) {
-	os.Args = []string{
-		"--logging-default-level", "WARN",
-		"--logging-default-enable-source-location", "true",
-		"--logging-default-prefix-width", "30",
-	}
 	b, err := booter.New("./test")
 	assert.Nil(t, err)
 
@@ -86,6 +85,8 @@ func TestBoot(t *testing.T) {
 	assert.Equal(t, 30, bconf.DefaultPrefixWidth)
 	assert.Equal(t, "WARN", bconf.DefaultLevel)
 	assert.Equal(t, true, bconf.DefaultEnableSourceLocation)
+
+	b.Shutdown()
 }
 
 type AmodConf struct {

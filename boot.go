@@ -77,12 +77,12 @@ func NewWithFiles(files []string) (Boot, error) {
 var startupHooks = make([]func(), 0)
 var shutdownHooks = make([]func(), 0)
 
-func AddStartupHook(hook func()) {
-	startupHooks = append(startupHooks, hook)
+func AddStartupHook(hooks ...func()) {
+	startupHooks = append(startupHooks, hooks...)
 }
 
-func AddShutdownHook(hook func()) {
-	shutdownHooks = append(shutdownHooks, hook)
+func AddShutdownHook(hooks ...func()) {
+	shutdownHooks = append(shutdownHooks, hooks...)
 }
 
 func (this *boot) Startup() error {
@@ -156,6 +156,7 @@ func (this *boot) Shutdown() {
 	}
 	for i := len(this.wrappers) - 1; i >= 0; i-- {
 		wrap := this.wrappers[i]
+		bootlog.Println("boot stop module", wrap.id)
 		instance := wrap.real
 		instance.Stop()
 		wrap.state = Stop
