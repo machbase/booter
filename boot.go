@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strings"
 	"syscall"
 
@@ -21,19 +20,19 @@ type Boot interface {
 
 	GetDefinition(id string) *Definition
 	GetInstance(id string) Bootable
-	GetEnvContext() *EnvContext
+	GetConfig(id string) any
 }
 
 type boot struct {
 	moduleDefs []*Definition
-	modules    []wrapper
+	wrappers   []wrapper
 	quitChan   chan os.Signal
-	envCtx     *EnvContext
 }
 
 type wrapper struct {
 	id    string
 	real  Bootable
+	conf  any
 	state State
 }
 
@@ -54,44 +53,24 @@ func New(configDir string, args []string) (Boot, error) {
 		return nil, errors.Wrap(err, "invalid config directory")
 	}
 
-	envfile := ""
 	files := make([]string, 0)
-	if _, err := os.Stat(filepath.Join(configDir, "env.hcl")); err == nil {
-		envfile = filepath.Join(configDir, "env.hcl")
-	}
-
 	for _, file := range entries {
-		if !strings.HasSuffix(file.Name(), ".hcl") || file.Name() == "env.hcl" {
+		if !strings.HasSuffix(file.Name(), ".hcl") {
 			continue
 		}
 		files = append(files, filepath.Join(configDir, file.Name()))
 	}
-	return NewWithFiles(args, envfile, files...)
+	return NewWithFiles(files, args)
 }
 
-func NewWithFiles(args []string, envfile string, files ...string) (Boot, error) {
+func NewWithFiles(files []string, args []string) (Boot, error) {
 	b := &boot{}
-	if len(envfile) > 0 {
-		if _, err := os.Stat(envfile); err == nil {
-			b.envCtx, err = LoadEnvContext(envfile)
-			if err != nil {
-				return nil, errors.Wrap(err, "env file error")
-			}
-		}
-	}
 
-	cfgs := make([]*Definition, 0)
-	for _, file := range files {
-		cs, err := loadModuleConfig(b.envCtx, file, args)
-		if err != nil {
-			return nil, err
-		}
-		cfgs = append(cfgs, cs...)
+	definitions, err := LoadDefinitions(files)
+	if err != nil {
+		return nil, err
 	}
-	sort.Slice(cfgs, func(i, j int) bool {
-		return cfgs[i].Priority < cfgs[j].Priority
-	})
-	b.moduleDefs = cfgs
+	b.moduleDefs = definitions
 	return b, nil
 }
 
@@ -103,13 +82,30 @@ var PreStopHook map[string]func()
 
 func (this *boot) Startup() error {
 	for _, def := range this.moduleDefs {
-		fact := getBootFactory(def.Id)
-		mod, err := fact.NewInstance(def.Config)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("mod NewInstance %s", def.Id))
+		if def.Disabled {
+			continue
 		}
-		wrap := wrapper{id: def.Id, real: mod, state: None}
-		this.modules = append(this.modules, wrap)
+
+		fact := getBootFactory(def.Id)
+		if fact == nil {
+			return fmt.Errorf("module %s is not found", def.Id)
+		}
+		config := fact.NewConfig()
+		err := EvalObject(fmt.Sprintf("%T", config), config, def.Config)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("config %T", config))
+		}
+		mod, err := fact.NewInstance(config)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("instance %s", def.Id))
+		}
+		wrap := wrapper{
+			id:    def.Id,
+			real:  mod,
+			conf:  config,
+			state: None,
+		}
+		this.wrappers = append(this.wrappers, wrap)
 
 		wrap.state = PreStart
 		if hook, ok := PreStartHook[def.Id]; ok {
@@ -130,8 +126,8 @@ func (this *boot) Startup() error {
 }
 
 func (this *boot) Shutdown() {
-	for i := len(this.modules); i >= 0; i-- {
-		mod := this.modules[i]
+	for i := len(this.wrappers); i >= 0; i-- {
+		mod := this.wrappers[i]
 		mod.state = Stopping
 		if hook, ok := PreStopHook[mod.id]; ok {
 			hook()
@@ -167,7 +163,7 @@ func (this *boot) GetDefinition(id string) *Definition {
 }
 
 func (this *boot) GetInstance(id string) Bootable {
-	for _, mod := range this.modules {
+	for _, mod := range this.wrappers {
 		if mod.id == id {
 			return mod.real
 		}
@@ -175,6 +171,11 @@ func (this *boot) GetInstance(id string) Bootable {
 	return nil
 }
 
-func (this *boot) GetEnvContext() *EnvContext {
-	return this.envCtx
+func (this *boot) GetConfig(id string) any {
+	for _, mod := range this.wrappers {
+		if mod.id == id {
+			return mod.conf
+		}
+	}
+	return nil
 }

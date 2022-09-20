@@ -1,8 +1,8 @@
 
 module "github.com/machbase/cemlib/supervisor" {
     disabled = true
-    priority = 10
-    config = {
-        config = "../../test/supervisor/config.ini"
+    priority = GLOBAL_BASE_PRIORITY_APP+10
+    config {
+        Config = "../../test/supervisor/config.ini"
     }
 }

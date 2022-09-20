@@ -40,63 +40,47 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestParser(t *testing.T) {
+	defs, err := booter.LoadDefinitions([]string{
+		"./test/env.hcl",
+		"./test/mod_amod.hcl",
+		"./test/mod_bmod.hcl",
+		"./test/mod_others.hcl",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(defs))
+}
+
 func TestBoot(t *testing.T) {
 	b, err := booter.New("./test", []string{"--logging-default-enable-source-location"})
 	assert.Nil(t, err)
-	b.Startup()
+
+	err = b.Startup()
+	assert.Nil(t, err)
 
 	def := b.GetDefinition(AmodId)
 	assert.NotNil(t, def)
-	assert.Equal(t, 100, def.Priority)
+	assert.Equal(t, 201, def.Priority)
 	assert.Equal(t, false, def.Disabled)
-	// conf := def.Config.(*logging.Config)
-	// assert.Equal(t, fmt.Sprintf("%s/./tmp/cmqd00.log", os.Getenv("HOME")), conf.Filename)
-	// assert.Equal(t, true, conf.Append)
-	// assert.Equal(t, "@midnight", conf.RotateSchedule)
-	// assert.Equal(t, 3, conf.MaxBackups)
-	// assert.Equal(t, 3, len(conf.Levels))
-	// assert.Equal(t, 51, conf.DefaultPrefixWidth)
-	// assert.Equal(t, "ERROR", conf.DefaultLevel)
-	// assert.Equal(t, true, conf.DefaultEnableSourceLocation)
+	aconf := b.GetConfig(AmodId).(*AmodConf)
+	assert.Equal(t, true, aconf.TcpConfig.Tls.LoadPrivateCAs)
+	assert.Equal(t, "./test/test_server_cert.pem", aconf.TcpConfig.Tls.CertFile)
+	assert.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
+	assert.Equal(t, 5*time.Second, aconf.TcpConfig.Tls.HandshakeTimeout)
 
 	def = b.GetDefinition(BmodId)
-	assert.Nil(t, def)
-	// assert.NotNil(t, def)
-	// assert.Equal(t, 100, def.Priority)
-	// assert.Equal(t, false, def.Disabled)
-	// mqttConf := def.Config.(*mqtt.MqttConfig)
-	// assert.Equal(t, true, mqttConf.TcpConfig.Tls.LoadPrivateCAs)
-	// assert.Equal(t, "./test/test_server_cert.pem", mqttConf.TcpConfig.Tls.CertFile)
-	// assert.Equal(t, "./test/test_server_key.pem", mqttConf.TcpConfig.Tls.KeyFile)
-	// assert.Equal(t, 5*time.Second, mqttConf.TcpConfig.Tls.HandshakeTimeout)
-
-	var content = `
-		name          = "hong gil ${upper("dong")}"
-		age           = 20
-		fiction-story = true
-		home-path     = env("HOME")
-		user-path     = "${env("HOME")}/data"
-	`
-
-	type Target struct {
-		Name         string
-		Age          int
-		FictionStory bool
-		HomePath     string
-		UserPath     string
-	}
-
-	var obj = &Target{}
-	var envctx = b.GetEnvContext()
-
-	err = booter.ParseWithContext(envctx, []byte(content), obj)
-	assert.Nil(t, err)
-	assert.Equal(t, "hong gil DONG", obj.Name)
-	assert.Equal(t, 20, obj.Age)
-	assert.Equal(t, true, obj.FictionStory)
-	assert.Equal(t, os.Getenv("HOME"), obj.HomePath)
-	assert.Equal(t, fmt.Sprintf("%s/data", os.Getenv("HOME")), obj.UserPath)
-	// fmt.Printf("\n%#v\n", obj)
+	assert.NotNil(t, def)
+	assert.Equal(t, 202, def.Priority)
+	assert.Equal(t, false, def.Disabled)
+	bconf := b.GetConfig(BmodId).(*BmodConf)
+	assert.Equal(t, fmt.Sprintf("%s/./tmp/cmqd00.log", os.Getenv("HOME")), bconf.Filename)
+	assert.Equal(t, true, bconf.Append)
+	assert.Equal(t, "@midnight", bconf.RotateSchedule)
+	assert.Equal(t, 3, bconf.MaxBackups)
+	assert.Equal(t, 3, len(bconf.Levels))
+	assert.Equal(t, 51, bconf.DefaultPrefixWidth)
+	assert.Equal(t, "ERROR", bconf.DefaultLevel)
+	assert.Equal(t, true, bconf.DefaultEnableSourceLocation)
 }
 
 type AmodConf struct {
@@ -134,6 +118,19 @@ func (this *Amod) Stop() {
 }
 
 type BmodConf struct {
+	Filename                    string
+	Append                      bool
+	MaxBackups                  int
+	RotateSchedule              string
+	DefaultLevel                string
+	DefaultPrefixWidth          int
+	DefaultEnableSourceLocation bool
+	Levels                      []LevelConf
+}
+
+type LevelConf struct {
+	Pattern string
+	Level   string
 }
 
 type Bmod struct {

@@ -1,19 +1,19 @@
 module "github.com/bmod" {
-    priority = 200
-    disabled = true
+    priority = GLOBAL_BASE_PRIORITY_APP + 2
+    disabled = false
     prefix   = "logging-"
-    config = {
-        filename                       = "${env2("HOME", ".")}/${GLOBAL.LOGDIR}/cmqd00.log"
-        append                         = GLOBAL.LOG_APPEND
-        max-backups                    = anyname.MAX_BACKUPS
-        rotate-schedule                = lower(anyname.ROTATE)
-        default-level                  = GLOBAL.LOG_LEVEL
-        default-prefix-width           = GLOBAL.LOG_PREFIX_WIDTH 
-        default-enable-source-location = false
-        levels = [
-            { pattern="MCH_*", level="DEBUG" },
-            { pattern="proc", level="TRACE" },
-            { pattern="cemlib", level="TRACE" },
+    config {
+        Filename                     = "${env2("HOME", ".")}/${GLOBAL_LOGDIR}/cmqd00.log"
+        Append                       = GLOBAL_LOG_APPEND
+        MaxBackups                   = anyname_MAX_BACKUPS
+        RotateSchedule               = lower(anyname_ROTATE)
+        DefaultLevel                 = GLOBAL_LOG_LEVEL
+        DefaultPrefixWidth           = GLOBAL_LOG_PREFIX_WIDTH 
+        DefaultEnableSourceLocation  = true
+        Levels = [
+            { Pattern="MCH_*", Level="DEBUG" },
+            { Pattern="proc", Level="TRACE" },
+            { Pattern="cemlib", Level="TRACE" },
         ]
     }
 }

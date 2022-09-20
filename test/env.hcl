@@ -1,4 +1,4 @@
-GLOBAL {
+define GLOBAL {
     IP_BIND      = "127.0.0.1"
     IP_ADVERTISE = "127.0.0.1"
 
@@ -9,9 +9,11 @@ GLOBAL {
     LOG_LEVEL        = "ERROR"
     LOG_PREFIX_WIDTH = 51
     LOG_APPEND       = true
+
+    BASE_PRIORITY_APP = 200
 }
 
-anyname {
+define anyname {
     MAX_BACKUPS = 3
     ROTATE = "@midnight"
 }

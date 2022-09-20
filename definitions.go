@@ -4,362 +4,300 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"regexp"
+	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 type Definition struct {
-	Id       string           `hcl:"id,label"`
-	Priority int              `hcl:"priority,optional"`
-	Disabled bool             `hcl:"disabled,optional"`
-	Prefix   string           `hcl:"prefix,optional"`
-	Config   ConfigDefinition `cty:"config,optional"`
+	Id       string
+	Priority int
+	Disabled bool
+	Prefix   string
+	Config   cty.Value
 }
 
-type ConfigDefinition struct {
-	// Name    string `hcl:"name,label"`
-	Remains hcl.Body `hcl:",remain"`
-}
-
-func loadModuleConfig(envCtx *EnvContext, path string, args []string) ([]*Definition, error) {
-	content, err := os.ReadFile(path)
+func LoadDefinitions(files []string) ([]*Definition, error) {
+	body, err := readFile(files)
 	if err != nil {
-		return nil, errors.Wrap(err, "loadModuleConfig read file")
+		return nil, err
 	}
 
-	////////////////////////////////////////////////////////
-	// module을 제외한 block들을 모두 변수 정의로 간주하고 읽어들인다.
-	pass1Ctx := &hcl.EvalContext{}
-	if envCtx != nil {
-		pass1Ctx.Variables = envCtx.Variables
-		pass1Ctx.Functions = envCtx.Functions
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{},
+		Blocks: []hcl.BlockHeaderSchema{
+			{Type: "module", LabelNames: []string{"id"}},
+			{Type: "define", LabelNames: []string{"id"}},
+		},
 	}
-	type anyhcl struct {
-		Remains any `hcl:",remain"`
-	}
-	pass1 := &anyhcl{}
-	if err := hclsimple.Decode(path, content, pass1Ctx, pass1); err != nil {
-		return nil, errors.Wrap(err, "loadModuleConfig pass1")
+	content, diag := body.Content(schema)
+	if diag.HasErrors() {
+		return nil, errors.New(diag.Error())
 	}
 
-	body, ok := pass1.Remains.(*hclsyntax.Body)
-	if !ok {
-		return nil, errors.Wrap(err, "loadModuleConfig invalid syntax")
+	defines := make([]*hcl.Block, 0)
+	modules := make([]*hcl.Block, 0)
+
+	for _, block := range content.Blocks {
+		if block.Type == "define" {
+			defines = append(defines, block)
+		} else if block.Type == "module" {
+			modules = append(modules, block)
+		}
 	}
 
-	vars := make(map[string]cty.Value)
+	functions := map[string]function.Function{
+		"env":    GetEnvFunc,
+		"env2":   GetEnv2Func,
+		"upper":  stdlib.UpperFunc,
+		"lower":  stdlib.LowerFunc,
+		"min":    stdlib.MinFunc,
+		"max":    stdlib.MaxFunc,
+		"strlen": stdlib.StrlenFunc,
+		"substr": stdlib.SubstrFunc,
+	}
+
+	variables := make(map[string]cty.Value)
+	for _, d := range defines {
+		id := d.Labels[0]
+		sb := d.Body.(*hclsyntax.Body)
+		for _, attr := range sb.Attributes {
+			name := fmt.Sprintf("%s_%s", id, attr.Name)
+			value, diag := attr.Expr.Value(nil)
+			if diag.HasErrors() {
+				return nil, errors.New(diag.Error())
+			}
+			variables[name] = value
+		}
+	}
+
+	evalCtx := &hcl.EvalContext{
+		Variables: variables,
+		Functions: functions,
+	}
+
+	schema = &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: "priority", Required: false},
+			{Name: "disabled", Required: false},
+			{Name: "prefix", Required: false},
+		},
+		Blocks: []hcl.BlockHeaderSchema{
+			{Type: "config", LabelNames: []string{}},
+		},
+	}
+
+	result := make([]*Definition, 0)
+	for _, m := range modules {
+		moduleId := m.Labels[0]
+		moduleDef := &Definition{Id: moduleId}
+
+		content, diag := m.Body.Content(schema)
+		if diag.HasErrors() {
+			return nil, errors.New(diag.Error())
+		}
+		// module attributes
+		for _, attr := range content.Attributes {
+			name := attr.Name
+			value, diag := attr.Expr.Value(evalCtx)
+			if diag.HasErrors() {
+				return nil, errors.New(diag.Error())
+			}
+			switch name {
+			case "priority":
+				moduleDef.Priority = PriorityFromCty(value)
+			case "disabled":
+				moduleDef.Disabled = BoolFromCty(value)
+			case "prefix":
+				moduleDef.Prefix = StringFromCty(value)
+			}
+		}
+		for _, c := range content.Blocks {
+			if c.Type == "config" {
+				obj, err := ObjectValFromBody(c.Body.(*hclsyntax.Body), evalCtx)
+				if err != nil {
+					return nil, err
+				}
+				moduleDef.Config = obj
+			} else {
+				return nil, fmt.Errorf("unknown block %s", c.Type)
+			}
+		}
+		result = append(result, moduleDef)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Priority < result[j].Priority
+	})
+
+	return result, nil
+}
+
+func readFile(files []string) (hcl.Body, error) {
+	hclFiles := make([]*hcl.File, 0)
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		hclFile, hclDiag := hclsyntax.ParseConfig(content, file, hcl.Pos{})
+		if hclDiag.HasErrors() {
+			return nil, errors.New(hclDiag.Error())
+		}
+		hclFiles = append(hclFiles, hclFile)
+	}
+	return hcl.MergeFiles(hclFiles), nil
+}
+
+func ObjectValFromBody(body *hclsyntax.Body, evalCtx *hcl.EvalContext) (cty.Value, error) {
+	rt := make(map[string]cty.Value)
+	for _, attr := range body.Attributes {
+		value, diag := attr.Expr.Value(evalCtx)
+		if diag.HasErrors() {
+			return cty.NilVal, errors.New(diag.Error())
+		}
+		rt[attr.Name] = value
+	}
 	for _, block := range body.Blocks {
-		if block.Type == "module" {
-			continue
+		bval, err := ObjectValFromBody(block.Body, evalCtx)
+		if err != nil {
+			return cty.NilVal, err
 		}
-		obj := make(map[string]cty.Value)
-		for _, attr := range block.Body.Attributes {
-			name, value := _eval_attribute(attr, nil)
-			obj[name] = value
-		}
-		vars[block.Type] = cty.ObjectVal(obj)
+		rt[block.Type] = bval
 	}
-	////////////////////////////////////////////////////////
-	// module block을 읽을 때 적용할 context를 정의한다.
-	ctx := pass1Ctx.NewChild()
-	ctx.Variables = vars
-
-	////////////////////////////////////////////////////////
-	// module block들을 읽어들인다.
-	type moduleConf2Pass struct {
-		Modules []*Definition `hcl:"module,block"`
-		Remains hcl.Body      `hcl:",remain"`
-	}
-
-	pass2 := &moduleConf2Pass{}
-	if err := hclsimple.Decode(path, content, ctx, pass2); err != nil {
-		return nil, errors.Wrap(err, "loadModuleConfig pass2")
-	}
-
-	enabledDefs := make([]*Definition, 0)
-	for _, mod := range pass2.Modules {
-		if mod.Disabled {
-			continue
-		}
-		md := getBootFactory(mod.Id)
-		if md == nil {
-			return nil, fmt.Errorf("module factory not found: %s", mod.Id)
-		}
-		mdCfg := md.NewConfig()
-		if mdCfg == nil {
-			// config가 정의되지 않은 module
-			enabledDefs = append(enabledDefs, mod)
-			continue
-		}
-
-		mdCfgRef := reflect.ValueOf(mdCfg)
-		if mdCfgRef.Kind() == reflect.Pointer {
-			mdCfgRef = reflect.Indirect(mdCfgRef)
-		}
-
-		fmt.Printf(" each module ==> %#v\n", mod.Config)
-		/*
-			attr := mod.Config.(*hcl.Attribute)
-			val, diagnostic := attr.Expr.Value(ctx)
-			if diagnostic != nil {
-				return nil, errors.New(diagnostic.Error())
-			}
-			iter := val.ElementIterator()
-			for iter.Next() {
-				k, v := iter.Element()
-				snakeFieldName := k.AsString()
-				currentLocation = fmt.Sprintf("%s '%s'", mod.Id, snakeFieldName)
-
-				fieldName := toCamelCase(snakeFieldName, true)
-				fieldRef := mdCfgRef.FieldByName(fieldName)
-
-				if fieldRef.IsValid() && fieldRef.CanSet() {
-					_set_reflect_cty(fieldName, &currentLocation, fieldRef, v)
-				} else {
-					panic(errors.New("unknown field"))
-				}
-			}
-
-			// command line arguments
-			if len(mod.Prefix) > 0 {
-				prefix := fmt.Sprintf("--%s", mod.Prefix)
-				for i, arg := range args {
-					if strings.HasPrefix(arg, prefix) {
-						snakeFieldName := arg[len(prefix):]
-						fieldName := toCamelCase(snakeFieldName, true)
-						fieldRef := mdCfgRef.FieldByName(fieldName)
-
-						if fieldRef.IsValid() && fieldRef.CanSet() {
-							_set_reflect_flag(fieldName, fieldRef, args, i)
-						} else {
-							panic(fmt.Errorf("unknown flag: %s", arg))
-						}
-					}
-				}
-
-				// set materialized config
-				mod.Config = mdCfg
-			}
-		*/
-		enabledDefs = append(enabledDefs, mod)
-	}
-
-	return enabledDefs, nil
+	return cty.ObjectVal(rt), nil
 }
 
-func _eval_attribute(attr *hclsyntax.Attribute, ctx *hcl.EvalContext) (string, cty.Value) {
-	var name = fmt.Sprintf("%s", attr.Name)
-	var value cty.Value
-	switch expr := attr.Expr.(type) {
-	case *hclsyntax.LiteralValueExpr:
-		value = expr.Val
-	case *hclsyntax.TemplateExpr:
-		value, _ = expr.Value(ctx)
-	case *hclsyntax.FunctionCallExpr:
-		value, _ = expr.Value(ctx)
-		// fmt.Printf("==> name: %s \n==> expr: %#v\n==>valu: %#v\n", name, expr, value)
-	default:
-		panic(fmt.Errorf("Unknown attribute type %-20s %T\n", attr.Name, attr.Expr))
-	}
-	return name, value
-}
-
-func _set_reflect_flag(fieldName string, fieldRef reflect.Value, args []string, idx int) {
-	switch fieldRef.Kind() {
+func _set_reflect_flag(refName string, ref reflect.Value, args []string, idx int) {
+	switch ref.Kind() {
 	case reflect.Bool:
-		fieldRef.SetBool(true)
+		ref.SetBool(true)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v, err := strconv.ParseInt(args[idx+1], 10, 64)
 		if err != nil {
 			panic(err)
 		}
-		fieldRef.SetInt(v)
+		ref.SetInt(v)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v, err := strconv.ParseUint(args[idx+1], 10, 64)
 		if err != nil {
 			panic(err)
 		}
-		fieldRef.SetUint(v)
+		ref.SetUint(v)
 	case reflect.Float32, reflect.Float64:
 		v, err := strconv.ParseFloat(args[idx+1], 64)
 		if err != nil {
 			panic(err)
 		}
-		fieldRef.SetFloat(v)
+		ref.SetFloat(v)
 	case reflect.String:
-		fieldRef.SetString(args[idx+1])
+		ref.SetString(args[idx+1])
 	case reflect.Array:
 		slice := strings.Split(args[idx+1], ",")
-		fieldRef.Set(reflect.ValueOf(slice))
+		ref.Set(reflect.ValueOf(slice))
 	case reflect.Slice:
 		slice := strings.Split(args[idx+1], ",")
-		fieldRef.Set(reflect.ValueOf(slice))
+		ref.Set(reflect.ValueOf(slice))
 	default:
-		panic(fmt.Errorf("unsupported reflection type: %s for %s", fieldRef.Kind(), fieldName))
+		panic(fmt.Errorf("unsupported reflection type: %s for %s", ref.Kind(), refName))
 	}
 }
 
-func _parse_int(str string) int64 {
-	var v int64
-	var err error
-	if strings.HasSuffix(str, "ms") {
-		if v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64); err == nil {
-			return v * int64(time.Millisecond)
-		}
-	} else if strings.HasSuffix(str, "s") {
-		if v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64); err == nil {
-			return v * int64(time.Second)
-		}
-	} else if strings.HasSuffix(str, "m") {
-		if v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64); err == nil {
-			return v * int64(time.Minute)
-		}
-	} else if strings.HasSuffix(str, "h") {
-		if v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64); err == nil {
-			return v * int64(time.Hour)
-		}
-	} else if strings.HasSuffix(str, "d") {
-		if v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64); err == nil {
-			return v * int64(time.Hour) * 24
-		}
-	}
-
-	v, err = strconv.ParseInt(str[0:len(str)-1], 10, 64)
-	if err != nil {
-		panic(err)
-	}
-	return v
+func EvalObject(objName string, obj any, value cty.Value) error {
+	ref := reflect.ValueOf(obj)
+	return EvalReflectValue(objName, ref, value)
 }
 
-func _set_reflect_cty(fieldName string, currentLocation *string, fieldRef reflect.Value, value cty.Value) {
-	switch fieldRef.Kind() {
+func EvalReflectValue(refName string, ref reflect.Value, value cty.Value) error {
+	if ref.Kind() == reflect.Pointer {
+		ref = reflect.Indirect(ref)
+	}
+	switch ref.Kind() {
+	case reflect.Struct:
+		if value.Type().IsObjectType() {
+			valmap := value.AsValueMap()
+			for k, v := range valmap {
+				field := ref.FieldByName(k)
+				if !field.IsValid() {
+					return fmt.Errorf("%s field not found in %s", k, refName)
+				}
+				err := EvalReflectValue(fmt.Sprintf("%s.%s", refName, k), field, v)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			return fmt.Errorf("%s should be object", refName)
+		}
+	case reflect.String:
+		if value.Type() == cty.String {
+			ref.SetString(value.AsString())
+		} else {
+			return fmt.Errorf("%s should be string", refName)
+		}
 	case reflect.Bool:
-		fieldRef.SetBool(value.True())
+		if value.Type() == cty.Bool {
+			ref.SetBool(value.True())
+		} else {
+			return fmt.Errorf("%s should be bool", refName)
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if value.Type() == cty.Number {
-			bf := value.AsBigFloat()
-			v, _ := bf.Int64()
-			fieldRef.SetInt(v)
-		} else if value.Type() == cty.String {
-			fieldRef.SetInt(_parse_int(value.AsString()))
+		if value.Type() == cty.Number || value.Type() == cty.String {
+			if v, err := Int64FromCty(value); err != nil {
+				return err
+			} else {
+				ref.SetInt(v)
+			}
+		} else {
+			return fmt.Errorf("%s should be int", refName)
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		bf := value.AsBigFloat()
-		v, _ := bf.Uint64()
-		fieldRef.SetUint(v)
-	case reflect.Float32, reflect.Float64:
-		bf := value.AsBigFloat()
-		v, _ := bf.Float64()
-		fieldRef.SetFloat(v)
-	case reflect.String:
-		fieldRef.SetString(value.AsString())
-	case reflect.Array:
+		if value.Type() == cty.Number || value.Type() == cty.String {
+			if v, err := Uint64FromCty(value); err != nil {
+				return err
+			} else {
+				ref.SetUint(v)
+			}
+		} else {
+			return fmt.Errorf("%s should be uint", refName)
+		}
 	case reflect.Slice:
 		vs := value.AsValueSlice()
-		slice := reflect.MakeSlice(fieldRef.Type(), len(vs), len(vs))
+		slice := reflect.MakeSlice(ref.Type(), len(vs), len(vs))
 		for i, elm := range vs {
-			elmName := fmt.Sprintf("%s[%d]'s value", fieldName, i)
-			*currentLocation = fmt.Sprintf("%s - %s", *currentLocation, elmName)
-			_set_reflect_cty(elmName, currentLocation, slice.Index(i), elm)
+			elmName := fmt.Sprintf("%s[%d]", refName, i)
+			err := EvalReflectValue(elmName, slice.Index(i), elm)
+			if err != nil {
+				return err
+			}
 		}
-		fieldRef.Set(slice)
+		ref.Set(slice)
 	case reflect.Map:
 		vm := value.AsValueMap()
-		maps := reflect.MakeMap(fieldRef.Type())
-		keyType := fieldRef.Type().Key()
+		maps := reflect.MakeMap(ref.Type())
+		keyType := ref.Type().Key()
 		if keyType.Kind() != reflect.String {
 			panic(fmt.Errorf("unsupported map key type: %v", keyType))
 		}
-		valType := fieldRef.Type().Elem()
+		valType := ref.Type().Elem()
 		if valType.Kind() == reflect.Pointer {
 			fmt.Printf("pointer map val type: %v", valType)
 		}
 		for k, v := range vm {
 			val := reflect.Indirect(reflect.New(valType))
-			*currentLocation = fmt.Sprintf("%s, '%s'", *currentLocation, k)
-			_set_reflect_cty(fmt.Sprintf("%s[\"%s\"]", fieldName, k), currentLocation, val, v)
+			elmName := fmt.Sprintf("%s[\"%s\"]", refName, k)
+			EvalReflectValue(elmName, val, v)
 			maps.SetMapIndex(reflect.ValueOf(k), val)
 		}
-		fieldRef.Set(maps)
-	case reflect.Struct:
-		vm := value.AsValueMap()
-		// fmt.Printf("======> %#v\n------> %#v\n", fieldRef, vm)
-		for k, v := range vm {
-			elmName := toCamelCase(k, true)
-			elmRef := fieldRef.FieldByName(elmName)
-			*currentLocation = fmt.Sprintf("%s, '%s'", *currentLocation, elmName)
-			_set_reflect_cty(fmt.Sprintf("%s.%s", fieldName, elmName), currentLocation, elmRef, v)
-		}
+		ref.Set(maps)
 	default:
-		panic(fmt.Errorf("unsupported reflection type: %s for %s", fieldRef.Kind(), fieldName))
+		return fmt.Errorf("unsupported reflection %s type: %s", refName, ref.Kind())
 	}
-}
-
-// Converts a string to CamelCase
-var uppercaseAcronym = map[string]string{
-	"ID": "id",
-}
-
-func toCamelCase(s string, initCase bool) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return s
-	}
-	if a, ok := uppercaseAcronym[s]; ok {
-		s = a
-	}
-
-	n := strings.Builder{}
-	n.Grow(len(s))
-	capNext := initCase
-	for i, v := range []byte(s) {
-		vIsCap := v >= 'A' && v <= 'Z'
-		vIsLow := v >= 'a' && v <= 'z'
-		if capNext {
-			if vIsLow {
-				v += 'A'
-				v -= 'a'
-			}
-		} else if i == 0 {
-			if vIsCap {
-				v += 'a'
-				v -= 'A'
-			}
-		}
-		if vIsCap || vIsLow {
-			n.WriteByte(v)
-			capNext = false
-		} else if vIsNum := v >= '0' && v <= '9'; vIsNum {
-			n.WriteByte(v)
-			capNext = true
-		} else {
-			capNext = v == '_' || v == ' ' || v == '-' || v == '.'
-		}
-	}
-	return n.String()
-}
-
-var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
-
-func toSnakeCase(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return s
-	}
-	if a, ok := uppercaseAcronym[s]; ok {
-		s = a
-	}
-
-	snake := matchFirstCap.ReplaceAllString(s, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
-	return strings.ToLower(snake)
+	return nil
 }

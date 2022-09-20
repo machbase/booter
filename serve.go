@@ -1,7 +1,6 @@
 package booter
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,16 +74,16 @@ func serve(conf *Config) {
 		files = append(files, path)
 	}
 
-	Server, err = NewWithFiles(conf.Args, conf.ModuleEnvFile, files...)
-	if err != nil {
-		panic(err)
-	}
+	// Server, err = NewWithFiles(conf.Args, conf.ModuleEnvFile, files...)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	fmt.Println("boot startup", conf.Pname)
-	Server.Startup()
+	// fmt.Println("boot startup", conf.Pname)
+	// Server.Startup()
 
-	Server.WaitSignal()
+	// Server.WaitSignal()
 
-	fmt.Println("boot shutdown", conf.Pname)
-	Server.Shutdown()
+	// fmt.Println("boot shutdown", conf.Pname)
+	// Server.Shutdown()
 }
