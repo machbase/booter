@@ -1,6 +1,9 @@
 package booter
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type Bootable interface {
 	Start() error
@@ -28,14 +31,25 @@ func UnregisterBootFactory(id string) {
 	delete(factoryRegistry, id)
 }
 
-func getBootFactory(id string) *BootFactory {
-	return factoryRegistry[id]
+func getFactory(id string) *BootFactory {
+	if obj, ok := factoryRegistry[id]; ok {
+		return obj
+	}
+	return nil
 }
 
-func Register(moduleId string, configFactory func() any, factory func(conf any) (Bootable, error)) {
+func Register[T any](moduleId string, configFactory func() T, factory func(conf T) (Bootable, error)) {
 	RegisterBootFactory(&BootFactory{
-		Id:          moduleId,
-		NewConfig:   configFactory,
-		NewInstance: factory,
+		Id: moduleId,
+		NewConfig: func() any {
+			return configFactory()
+		},
+		NewInstance: func(conf any) (Bootable, error) {
+			if c, ok := conf.(T); ok {
+				return factory(c)
+			} else {
+				return nil, fmt.Errorf("invalid config type: %T", conf)
+			}
+		},
 	})
 }

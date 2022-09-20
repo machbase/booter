@@ -86,12 +86,13 @@ func AddShutdownHook(hook func()) {
 }
 
 func (this *boot) Startup() error {
+	bootlog.Println("boot ", len(this.moduleDefs), "modules defined")
 	for _, def := range this.moduleDefs {
 		if def.Disabled {
 			continue
 		}
 		// find factory
-		fact := getBootFactory(def.Id)
+		fact := getFactory(def.Id)
 		if fact == nil {
 			return fmt.Errorf("module %s is not found", def.Id)
 		}
@@ -121,8 +122,11 @@ func (this *boot) Startup() error {
 		this.wrappers = append(this.wrappers, wrap)
 	}
 
+	bootlog.Println("boot ", len(this.wrappers), "modules enabled")
+
 	// pre-start
 	for _, wrap := range this.wrappers {
+		bootlog.Println("boot load module", wrap.id)
 		wrap.state = Starting
 	}
 
@@ -133,6 +137,7 @@ func (this *boot) Startup() error {
 	// start & post-start
 	for _, wrap := range this.wrappers {
 		wrap.state = Starting
+		bootlog.Println("boot start module", wrap.id)
 		err := wrap.real.Start()
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("mod start %s", wrap.id))

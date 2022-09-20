@@ -54,17 +54,17 @@ func Main() {
 
 	var writer io.Writer
 	if len(conf.BootlogFile) > 0 {
-		logfile, _ := os.OpenFile(conf.BootlogFile, os.O_CREATE|os.O_APPEND, 0644)
+		logfile, _ := os.OpenFile(conf.BootlogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		defer logfile.Close()
 		writer = io.MultiWriter(os.Stdout, logfile)
 	} else {
 		writer = os.Stdout
 	}
-	bootlog = log.New(writer, fmt.Sprintf("boot-%s ", conf.Pname), log.LstdFlags)
+	bootlog = log.New(writer, fmt.Sprintf("boot-%s", conf.Pname), log.LstdFlags|log.Lmsgprefix)
 	bootlog.Println("pid:", os.Getpid())
 
 	if len(conf.PidFile) > 0 {
-		pfile, _ := os.OpenFile(conf.PidFile, os.O_CREATE|os.O_TRUNC, 0644)
+		pfile, _ := os.OpenFile(conf.PidFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 		pfile.WriteString(fmt.Sprintf("%d", os.Getpid()))
 		pfile.Close()
 	}
@@ -112,7 +112,10 @@ func Serve(conf *Config) {
 	}
 
 	bootlog.Println("startup", conf.Pname)
-	Server.Startup()
+	err = Server.Startup()
+	if err != nil {
+		panic(err)
+	}
 
 	Server.WaitSignal()
 

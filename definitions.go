@@ -77,10 +77,11 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 		},
 	}
 
+	priorityBase := 1000
 	result := make([]*Definition, 0)
-	for _, m := range modules {
+	for i, m := range modules {
 		moduleId := m.Labels[0]
-		moduleDef := &Definition{Id: moduleId}
+		moduleDef := &Definition{Id: moduleId, Priority: priorityBase + i}
 
 		content, diag := m.Body.Content(schema)
 		if diag.HasErrors() {
