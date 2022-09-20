@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 
@@ -132,6 +133,31 @@ func (this *boot) Startup() error {
 			state:      None,
 		}
 		this.wrappers = append(this.wrappers, wrap)
+	}
+
+	// assign references
+	for _, wrap := range this.wrappers {
+		if len(wrap.definition.References) == 0 {
+			continue
+		}
+		for fieldName, referId := range wrap.definition.References {
+			var referMod Boot
+			for _, w := range this.wrappers {
+				if w.id == referId {
+					referMod = w.real
+					break
+				}
+			}
+			if referMod == nil {
+				return fmt.Errorf("%s %s reference to %s, not found", wrap.id, fieldName, referId)
+			}
+			mod := reflect.ValueOf(wrap.real)
+			field := reflect.Indirect(mod).FieldByName(fieldName)
+			if !field.IsValid() {
+				return fmt.Errorf("%s %s is not accessible", wrap.id, fieldName)
+			}
+			field.Set(reflect.ValueOf(referMod))
+		}
 	}
 
 	bootlog.Println("boot ", len(this.wrappers), "modules enabled")

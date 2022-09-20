@@ -13,10 +13,11 @@ import (
 )
 
 type Definition struct {
-	Id       string
-	Priority int
-	Disabled bool
-	Config   cty.Value
+	Id         string
+	Priority   int
+	Disabled   bool
+	Config     cty.Value
+	References map[string]string // key: fieldName, value: reference module id
 }
 
 func LoadDefinitionFiles(files []string) ([]*Definition, error) {
@@ -85,6 +86,7 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		},
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "config", LabelNames: []string{}},
+			{Type: "reference", LabelNames: []string{"field", "refer"}},
 		},
 	}
 
@@ -119,6 +121,16 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 					return nil, err
 				}
 				moduleDef.Config = obj
+			} else if c.Type == "reference" {
+				if len(c.Labels) != 2 {
+					return nil, fmt.Errorf("reference requires <field> and <refered module id>")
+				}
+				fieldName := c.Labels[0]
+				referId := c.Labels[1]
+				if moduleDef.References == nil {
+					moduleDef.References = make(map[string]string)
+				}
+				moduleDef.References[fieldName] = referId
 			} else {
 				return nil, fmt.Errorf("unknown block %s", c.Type)
 			}

@@ -112,11 +112,11 @@ type TlsConfig struct {
 
 type Amod struct {
 	conf *AmodConf
-	bmod *Bmod
+	Bmod *Bmod
 }
 
 func (this *Amod) Start() error {
-	fmt.Println("amod start")
+	fmt.Printf("amod start with Amod.Bmod=%p\n", this.Bmod)
 	return nil
 }
 

@@ -17,4 +17,5 @@ module "github.com/amod" {
             }
         }
     }
+    reference "Bmod" "github.com/bmod" { }
 }
