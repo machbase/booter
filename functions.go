@@ -1,13 +1,28 @@
 package booter
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
-var GetEnvFunc = function.New(&function.Spec{
+var defaultFunctions = map[string]function.Function{
+	"env":         GetEnvFunc,
+	"envOrError":  GetEnv2Func,
+	"flag":        GetFlagFunc,
+	"flagOrError": GetFlag2Func,
+	"upper":       stdlib.UpperFunc,
+	"lower":       stdlib.LowerFunc,
+	"min":         stdlib.MinFunc,
+	"max":         stdlib.MaxFunc,
+	"strlen":      stdlib.StrlenFunc,
+	"substr":      stdlib.SubstrFunc,
+}
+
+var GetEnv2Func = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
 			Name:             "env",
@@ -18,12 +33,15 @@ var GetEnvFunc = function.New(&function.Spec{
 	Type: function.StaticReturnType(cty.String),
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		in := args[0].AsString()
-		out := os.Getenv(in)
+		out, ok := os.LookupEnv(in)
+		if !ok {
+			return cty.NilVal, fmt.Errorf("required env variable %s missing", in)
+		}
 		return cty.StringVal(out), nil
 	},
 })
 
-var GetEnv2Func = function.New(&function.Spec{
+var GetEnvFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
 			Name:             "env",
@@ -48,6 +66,30 @@ var GetEnv2Func = function.New(&function.Spec{
 			out = def
 		}
 		return cty.StringVal(out), nil
+	},
+})
+
+var GetFlag2Func = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "flag",
+			Type:             cty.String,
+			AllowDynamicType: true,
+		},
+	},
+	Type: function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		in := args[0].AsString()
+		out := ""
+		for i, arg := range os.Args {
+			if arg == in {
+				if i < len(os.Args)-1 {
+					out = os.Args[i+1]
+				}
+				return cty.StringVal(out), nil
+			}
+		}
+		return cty.NilVal, fmt.Errorf("required flag %s missing", in)
 	},
 })
 

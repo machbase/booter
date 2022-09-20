@@ -12,8 +12,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
-	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 type Definition struct {
@@ -52,18 +50,6 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 		}
 	}
 
-	functions := map[string]function.Function{
-		"env":    GetEnvFunc,
-		"env2":   GetEnv2Func,
-		"flag":   GetFlagFunc,
-		"upper":  stdlib.UpperFunc,
-		"lower":  stdlib.LowerFunc,
-		"min":    stdlib.MinFunc,
-		"max":    stdlib.MaxFunc,
-		"strlen": stdlib.StrlenFunc,
-		"substr": stdlib.SubstrFunc,
-	}
-
 	variables := make(map[string]cty.Value)
 	for _, d := range defines {
 		id := d.Labels[0]
@@ -80,7 +66,7 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 
 	evalCtx := &hcl.EvalContext{
 		Variables: variables,
-		Functions: functions,
+		Functions: defaultFunctions,
 	}
 
 	schema = &hcl.BodySchema{
