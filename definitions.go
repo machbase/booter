@@ -19,12 +19,23 @@ type Definition struct {
 	Config   cty.Value
 }
 
-func LoadDefinitions(files []string) ([]*Definition, error) {
-	body, err := readFile(files)
+func LoadDefinitionFiles(files []string) ([]*Definition, error) {
+	body, err := LoadFile(files...)
 	if err != nil {
 		return nil, err
 	}
+	return ParseDefinitions(body)
+}
 
+func LoadDefinitions(content []byte) ([]*Definition, error) {
+	body, err := Load(content)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefinitions(body)
+}
+
+func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 	schema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{},
 		Blocks: []hcl.BlockHeaderSchema{
@@ -121,7 +132,7 @@ func LoadDefinitions(files []string) ([]*Definition, error) {
 	return result, nil
 }
 
-func readFile(files []string) (hcl.Body, error) {
+func LoadFile(files ...string) (hcl.Body, error) {
 	hclFiles := make([]*hcl.File, 0)
 	for _, file := range files {
 		content, err := os.ReadFile(file)
@@ -135,6 +146,14 @@ func readFile(files []string) (hcl.Body, error) {
 		hclFiles = append(hclFiles, hclFile)
 	}
 	return hcl.MergeFiles(hclFiles), nil
+}
+
+func Load(content []byte) (hcl.Body, error) {
+	hclFile, hclDiag := hclsyntax.ParseConfig(content, "nofile.hcl", hcl.Pos{})
+	if hclDiag.HasErrors() {
+		return nil, errors.New(hclDiag.Error())
+	}
+	return hclFile.Body, nil
 }
 
 func ObjectValFromBody(body *hclsyntax.Body, evalCtx *hcl.EvalContext) (cty.Value, error) {

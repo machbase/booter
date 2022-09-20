@@ -5,8 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -19,7 +17,7 @@ type Config struct {
 	ConfDir     string
 }
 
-var Server Boot
+var Server Booter
 var conf *Config
 var bootlog *log.Logger
 
@@ -27,7 +25,7 @@ func init() {
 	bootlog = log.New(os.Stdout, "booter", log.LstdFlags|log.Lmsgprefix)
 }
 
-func Main() {
+func Startup() {
 	conf = &Config{
 		Daemon:      false,
 		BootlogFile: "./boot.log",
@@ -74,14 +72,10 @@ func Main() {
 	}
 
 	if conf.Daemon {
-		Daemonize(conf.BootlogFile, conf.PidFile, func() { Serve(conf) })
+		Daemonize(conf.BootlogFile, conf.PidFile, func() { serve(conf) })
 	} else {
-		Serve(conf)
+		serve(conf)
 	}
-}
-
-func Pname() string {
-	return conf.Pname
 }
 
 func Shutdown() {
@@ -96,22 +90,25 @@ func NotifySignal() {
 	Server.NotifySignal()
 }
 
-func Serve(conf *Config) {
-	entries, err := os.ReadDir(conf.ConfDir)
-	if err != nil {
-		panic(err)
-	}
+func GetDefinition(id string) *Definition {
+	return Server.GetDefinition(id)
+}
 
-	files := make([]string, 0)
-	for _, file := range entries {
-		if !strings.HasSuffix(file.Name(), ".hcl") {
-			continue
-		}
-		path := filepath.Join(conf.ConfDir, file.Name())
-		files = append(files, path)
-	}
+func GetInstance(id string) Boot {
+	return Server.GetInstance(id)
+}
 
-	Server, err = NewWithFiles(files)
+func GetConfig(id string) any {
+	return Server.GetInstance(id)
+}
+
+func Pname() string {
+	return conf.Pname
+}
+
+func serve(conf *Config) {
+	var err error
+	Server, err = NewWithDir(conf.ConfDir)
 	if err != nil {
 		panic(err)
 	}

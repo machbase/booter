@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type Bootable interface {
+type Boot interface {
 	Start() error
 	Stop()
 }
@@ -13,7 +13,7 @@ type Bootable interface {
 type BootFactory struct {
 	Id          string
 	NewConfig   func() any
-	NewInstance func(config any) (Bootable, error)
+	NewInstance func(config any) (Boot, error)
 }
 
 var factoryRegistry = make(map[string]*BootFactory)
@@ -27,24 +27,24 @@ func RegisterBootFactory(def *BootFactory) {
 	factoryRegistryLock.Unlock()
 }
 
-func UnregisterBootFactory(id string) {
-	delete(factoryRegistry, id)
+func UnregisterBootFactory(moduleId string) {
+	delete(factoryRegistry, moduleId)
 }
 
-func getFactory(id string) *BootFactory {
-	if obj, ok := factoryRegistry[id]; ok {
+func getFactory(moduleId string) *BootFactory {
+	if obj, ok := factoryRegistry[moduleId]; ok {
 		return obj
 	}
 	return nil
 }
 
-func Register[T any](moduleId string, configFactory func() T, factory func(conf T) (Bootable, error)) {
+func Register[T any](moduleId string, configFactory func() T, factory func(conf T) (Boot, error)) {
 	RegisterBootFactory(&BootFactory{
 		Id: moduleId,
 		NewConfig: func() any {
 			return configFactory()
 		},
-		NewInstance: func(conf any) (Bootable, error) {
+		NewInstance: func(conf any) (Boot, error) {
 			if c, ok := conf.(T); ok {
 				return factory(c)
 			} else {

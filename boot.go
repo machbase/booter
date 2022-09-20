@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Boot interface {
+type Booter interface {
 	Startup() error
 	Shutdown()
 
@@ -19,7 +19,7 @@ type Boot interface {
 	NotifySignal()
 
 	GetDefinition(id string) *Definition
-	GetInstance(id string) Bootable
+	GetInstance(id string) Boot
 	GetConfig(id string) any
 }
 
@@ -32,7 +32,7 @@ type boot struct {
 type wrapper struct {
 	id         string
 	definition *Definition
-	real       Bootable
+	real       Boot
 	conf       any
 	state      State
 }
@@ -47,7 +47,30 @@ const (
 	Stop
 )
 
-func New(configDir string) (Boot, error) {
+func New(content []byte) (Booter, error) {
+	definitions, err := LoadDefinitions(content)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithDefinitions(definitions)
+}
+
+func NewWithFiles(files []string) (Booter, error) {
+	definitions, err := LoadDefinitionFiles(files)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithDefinitions(definitions)
+}
+
+func NewWithDefinitions(definitions []*Definition) (Booter, error) {
+	b := &boot{
+		moduleDefs: definitions,
+	}
+	return b, nil
+}
+
+func NewWithDir(configDir string) (Booter, error) {
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid config directory")
@@ -61,17 +84,6 @@ func New(configDir string) (Boot, error) {
 		files = append(files, filepath.Join(configDir, file.Name()))
 	}
 	return NewWithFiles(files)
-}
-
-func NewWithFiles(files []string) (Boot, error) {
-	b := &boot{}
-
-	definitions, err := LoadDefinitions(files)
-	if err != nil {
-		return nil, err
-	}
-	b.moduleDefs = definitions
-	return b, nil
 }
 
 var startupHooks = make([]func(), 0)
@@ -187,7 +199,7 @@ func (this *boot) GetDefinition(id string) *Definition {
 	return nil
 }
 
-func (this *boot) GetInstance(id string) Bootable {
+func (this *boot) GetInstance(id string) Boot {
 	for _, mod := range this.wrappers {
 		if mod.id == id {
 			return mod.real

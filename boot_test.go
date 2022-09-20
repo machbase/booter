@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 		func() *AmodConf {
 			return new(AmodConf)
 		},
-		func(conf *AmodConf) (booter.Bootable, error) {
+		func(conf *AmodConf) (booter.Boot, error) {
 			instance := &Amod{
 				conf: conf,
 			}
@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 		func() *BmodConf {
 			return new(BmodConf)
 		},
-		func(conf *BmodConf) (booter.Bootable, error) {
+		func(conf *BmodConf) (booter.Boot, error) {
 			instance := &Bmod{
 				conf: *conf,
 			}
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestParser(t *testing.T) {
-	defs, err := booter.LoadDefinitions([]string{
+	defs, err := booter.LoadDefinitionFiles([]string{
 		"./test/env.hcl",
 		"./test/mod_amod.hcl",
 		"./test/mod_bmod.hcl",
@@ -56,7 +56,7 @@ func TestParser(t *testing.T) {
 }
 
 func TestBoot(t *testing.T) {
-	b, err := booter.New("./test")
+	b, err := booter.NewWithDir("./test")
 	assert.Nil(t, err)
 
 	err = b.Startup()
@@ -112,6 +112,7 @@ type TlsConfig struct {
 
 type Amod struct {
 	conf *AmodConf
+	bmod *Bmod
 }
 
 func (this *Amod) Start() error {
