@@ -28,3 +28,6 @@ tmp/
 packages/
 vendor/
 .air.toml
+
+*.log
+*.pid

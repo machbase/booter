@@ -1,42 +1,77 @@
 package booter
 
 import (
+	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/alecthomas/kong"
-	konghcl "github.com/alecthomas/kong-hcl"
+	"github.com/pkg/errors"
 )
 
 type Config struct {
-	Config        kong.ConfigFlag `short:"c" type:"existingfile" placeholder:"<config_path>" env:"BOOT_CONFIG"`
-	Daemon        bool            `short:"d" help:"run in background, daemonize"`
-	BootlogFile   string          `default:"./boot.log"`
-	PidFile       string          `default:"./boot.pid"`
-	Pname         string          `default:"noname"`
-	ModuleEnvFile string          `default:""`
-	ModuleConfDir string          `default:""`
-	Args          []string        `arg:"" optional:"" passthrough:""`
+	Daemon      bool
+	BootlogFile string
+	PidFile     string
+	Pname       string
+	ConfDir     string
 }
 
 var Server Boot
 var conf *Config
+var bootlog *log.Logger
 
-func Serve(args []string) {
-	conf = &Config{}
-	parser, err := kong.New(conf, kong.Configuration(konghcl.Loader))
-	if err != nil {
-		panic(err)
+func Main() {
+	conf = &Config{
+		Daemon:      false,
+		BootlogFile: "./boot.log",
+		PidFile:     "./boot.pid",
+		Pname:       "noname",
 	}
-	_, err = parser.Parse(args)
-	if err != nil {
-		panic(err)
+	for i := 0; i < len(os.Args); i++ {
+		if len(os.Args[i]) <= 2 || os.Args[i][0] != '-' || os.Args[i][1] != '-' {
+			continue
+		}
+		switch os.Args[i] {
+		case "--daemon":
+			conf.Daemon = true
+		case "--bootlog":
+			conf.BootlogFile = os.Args[i+1]
+		case "--pid":
+			conf.PidFile = os.Args[i+1]
+		case "--pname":
+			conf.Pname = os.Args[i+1]
+		case "--config-dir":
+			conf.ConfDir = os.Args[i+1]
+		}
+	}
+
+	if len(conf.ConfDir) == 0 {
+		panic(errors.New("config-dir required"))
+	}
+
+	var writer io.Writer
+	if len(conf.BootlogFile) > 0 {
+		logfile, _ := os.OpenFile(conf.BootlogFile, os.O_CREATE|os.O_APPEND, 0644)
+		defer logfile.Close()
+		writer = io.MultiWriter(os.Stdout, logfile)
+	} else {
+		writer = os.Stdout
+	}
+	bootlog = log.New(writer, fmt.Sprintf("boot-%s ", conf.Pname), log.LstdFlags)
+	bootlog.Println("pid:", os.Getpid())
+
+	if len(conf.PidFile) > 0 {
+		pfile, _ := os.OpenFile(conf.PidFile, os.O_CREATE|os.O_TRUNC, 0644)
+		pfile.WriteString(fmt.Sprintf("%d", os.Getpid()))
+		pfile.Close()
 	}
 	if conf.Daemon {
-		Daemonize(conf.BootlogFile, conf.PidFile, func() { serve(conf) })
+		Daemonize(conf.BootlogFile, conf.PidFile, func() { Serve(conf) })
 	} else {
-		serve(conf)
+		Serve(conf)
 	}
 }
 
@@ -56,8 +91,8 @@ func NotifySignal() {
 	Server.NotifySignal()
 }
 
-func serve(conf *Config) {
-	entries, err := os.ReadDir(conf.ModuleConfDir)
+func Serve(conf *Config) {
+	entries, err := os.ReadDir(conf.ConfDir)
 	if err != nil {
 		panic(err)
 	}
@@ -67,23 +102,20 @@ func serve(conf *Config) {
 		if !strings.HasSuffix(file.Name(), ".hcl") {
 			continue
 		}
-		path := filepath.Join(conf.ModuleConfDir, file.Name())
-		if path == conf.ModuleEnvFile {
-			continue
-		}
+		path := filepath.Join(conf.ConfDir, file.Name())
 		files = append(files, path)
 	}
 
-	// Server, err = NewWithFiles(conf.Args, conf.ModuleEnvFile, files...)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	Server, err = NewWithFiles(files)
+	if err != nil {
+		panic(err)
+	}
 
-	// fmt.Println("boot startup", conf.Pname)
-	// Server.Startup()
+	bootlog.Println("startup", conf.Pname)
+	Server.Startup()
 
-	// Server.WaitSignal()
+	Server.WaitSignal()
 
-	// fmt.Println("boot shutdown", conf.Pname)
-	// Server.Shutdown()
+	bootlog.Println("shutdown", conf.Pname)
+	Server.Shutdown()
 }

@@ -5,8 +5,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -155,41 +153,6 @@ func ObjectValFromBody(body *hclsyntax.Body, evalCtx *hcl.EvalContext) (cty.Valu
 		rt[block.Type] = bval
 	}
 	return cty.ObjectVal(rt), nil
-}
-
-func _set_reflect_flag(refName string, ref reflect.Value, args []string, idx int) {
-	switch ref.Kind() {
-	case reflect.Bool:
-		ref.SetBool(true)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v, err := strconv.ParseInt(args[idx+1], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		ref.SetInt(v)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v, err := strconv.ParseUint(args[idx+1], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		ref.SetUint(v)
-	case reflect.Float32, reflect.Float64:
-		v, err := strconv.ParseFloat(args[idx+1], 64)
-		if err != nil {
-			panic(err)
-		}
-		ref.SetFloat(v)
-	case reflect.String:
-		ref.SetString(args[idx+1])
-	case reflect.Array:
-		slice := strings.Split(args[idx+1], ",")
-		ref.Set(reflect.ValueOf(slice))
-	case reflect.Slice:
-		slice := strings.Split(args[idx+1], ",")
-		ref.Set(reflect.ValueOf(slice))
-	default:
-		panic(fmt.Errorf("unsupported reflection type: %s for %s", ref.Kind(), refName))
-	}
 }
 
 func EvalObject(objName string, obj any, value cty.Value) error {

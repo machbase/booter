@@ -41,7 +41,6 @@ type State int
 
 const (
 	None State = iota
-	PreStart
 	Starting
 	Run
 	Stopping
@@ -75,10 +74,16 @@ func NewWithFiles(files []string) (Boot, error) {
 	return b, nil
 }
 
-type Hook map[string]func()
+var startupHooks = make([]func(), 0)
+var shutdownHooks = make([]func(), 0)
 
-var PreStartHook map[string]func()
-var PreStopHook map[string]func()
+func AddStartupHook(hook func()) {
+	startupHooks = append(startupHooks, hook)
+}
+
+func AddShutdownHook(hook func()) {
+	shutdownHooks = append(shutdownHooks, hook)
+}
 
 func (this *boot) Startup() error {
 	for _, def := range this.moduleDefs {
@@ -118,10 +123,11 @@ func (this *boot) Startup() error {
 
 	// pre-start
 	for _, wrap := range this.wrappers {
-		wrap.state = PreStart
-		if hook, ok := PreStartHook[wrap.id]; ok {
-			hook()
-		}
+		wrap.state = Starting
+	}
+
+	for _, hook := range startupHooks {
+		hook()
 	}
 
 	// start & post-start
@@ -137,15 +143,17 @@ func (this *boot) Startup() error {
 }
 
 func (this *boot) Shutdown() {
-	for i := len(this.wrappers); i >= 0; i-- {
-		mod := this.wrappers[i]
-		mod.state = Stopping
-		if hook, ok := PreStopHook[mod.id]; ok {
-			hook()
-		}
-		instance := mod.real
+	for _, wrap := range this.wrappers {
+		wrap.state = Stopping
+	}
+	for _, hook := range shutdownHooks {
+		hook()
+	}
+	for i := len(this.wrappers) - 1; i >= 0; i-- {
+		wrap := this.wrappers[i]
+		instance := wrap.real
 		instance.Stop()
-		mod.state = Stop
+		wrap.state = Stop
 	}
 }
 
