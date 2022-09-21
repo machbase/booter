@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -102,9 +103,13 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 	result := make([]*Definition, 0)
 	for i, m := range modules {
 		moduleId := m.Labels[0]
+		moduleName := fmt.Sprintf("$mod_%d", i+1)
+		if offset := strings.LastIndex(moduleId, "/"); offset > 0 && offset < len(moduleId)-1 {
+			moduleName = fmt.Sprintf("%s%02d", moduleId[offset+1:], i)
+		}
 		moduleDef := &Definition{
 			Id:       moduleId,
-			Name:     fmt.Sprintf("$mod_%d", i+1),
+			Name:     moduleName,
 			Priority: priorityBase + i,
 		}
 

@@ -99,8 +99,14 @@ func AddShutdownHook(hooks ...func()) {
 }
 
 func (this *boot) Startup() error {
-	bootlog.Println("boot ", len(this.moduleDefs), "modules defined")
+	bootlog.Println(len(this.moduleDefs), "modules defined")
 	for _, def := range this.moduleDefs {
+		state := "enabled"
+		if def.Disabled {
+			state = "disabled"
+		}
+		bootlog.Println(def.Id, def.Name, state)
+
 		if def.Disabled {
 			continue
 		}
@@ -160,11 +166,10 @@ func (this *boot) Startup() error {
 		}
 	}
 
-	bootlog.Println("boot ", len(this.wrappers), "modules enabled")
+	bootlog.Println(len(this.wrappers), "modules enabled")
 
 	// pre-start
 	for _, wrap := range this.wrappers {
-		bootlog.Println("boot load module", wrap.id)
 		wrap.state = Starting
 	}
 
@@ -175,7 +180,7 @@ func (this *boot) Startup() error {
 	// start & post-start
 	for _, wrap := range this.wrappers {
 		wrap.state = Starting
-		bootlog.Println("boot start module", wrap.id)
+		bootlog.Println("start", wrap.id, wrap.definition.Name)
 		err := wrap.real.Start()
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("mod start %s", wrap.id))
@@ -194,7 +199,7 @@ func (this *boot) Shutdown() {
 	}
 	for i := len(this.wrappers) - 1; i >= 0; i-- {
 		wrap := this.wrappers[i]
-		bootlog.Println("boot stop module", wrap.id)
+		bootlog.Println("stop", wrap.id, wrap.definition.Name)
 		instance := wrap.real
 		instance.Stop()
 		wrap.state = Stop

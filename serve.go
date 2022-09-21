@@ -22,7 +22,7 @@ var conf *Config
 var bootlog *log.Logger
 
 func init() {
-	bootlog = log.New(os.Stdout, "booter", log.LstdFlags|log.Lmsgprefix)
+	bootlog = log.New(os.Stdout, "booter ", log.LstdFlags|log.Lmsgprefix)
 }
 
 func Startup() {
@@ -58,9 +58,17 @@ func Startup() {
 	if len(conf.BootlogFile) > 0 {
 		logfile, _ := os.OpenFile(conf.BootlogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		defer logfile.Close()
-		writer = io.MultiWriter(os.Stdout, logfile)
+		if conf.Daemon {
+			writer = logfile
+		} else {
+			writer = io.MultiWriter(os.Stdout, logfile)
+		}
 	} else {
-		writer = os.Stdout
+		if conf.Daemon {
+			writer = io.Discard
+		} else {
+			writer = os.Stdout
+		}
 	}
 	bootlog = log.New(writer, fmt.Sprintf("boot-%s", conf.Pname), log.LstdFlags|log.Lmsgprefix)
 	bootlog.Println("pid:", os.Getpid())
