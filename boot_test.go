@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/machbase/booter"
+	"github.com/pkg/errors"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var AmodId = "github.com/amod"
-var BmodId = "github.com/bmod"
+var AmodId = "github.com/booter/amod"
+var BmodId = "github.com/booter/bmod"
 
 func TestMain(m *testing.M) {
 	os.Args = []string{
@@ -111,12 +112,18 @@ type TlsConfig struct {
 }
 
 type Amod struct {
-	conf *AmodConf
-	Bmod *Bmod
+	conf             *AmodConf
+	Bmod             *Bmod
+	OtherNameForBmod *Bmod
 }
 
 func (this *Amod) Start() error {
-	fmt.Printf("amod start with Amod.Bmod=%p\n", this.Bmod)
+	fmt.Println("amod start")
+	fmt.Printf("    with Amod.Bmod             = %p\n", this.Bmod)
+	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", this.OtherNameForBmod)
+	if this.Bmod != this.OtherNameForBmod {
+		return errors.New("wrong references")
+	}
 	return nil
 }
 

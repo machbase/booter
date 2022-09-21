@@ -1,4 +1,5 @@
-module "github.com/bmod" {
+module "github.com/booter/bmod" {
+    name = "bmod"
     priority = GLOBAL_BASE_PRIORITY_APP + 2
     disabled = false
     config {

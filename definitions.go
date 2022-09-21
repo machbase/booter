@@ -14,6 +14,7 @@ import (
 
 type Definition struct {
 	Id         string
+	Name       string
 	Priority   int
 	Disabled   bool
 	Config     cty.Value
@@ -37,14 +38,14 @@ func LoadDefinitions(content []byte) ([]*Definition, error) {
 }
 
 func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
-	schema := &hcl.BodySchema{
+	moduleSchema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{},
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "module", LabelNames: []string{"id"}},
 			{Type: "define", LabelNames: []string{"id"}},
 		},
 	}
-	content, diag := body.Content(schema)
+	content, diag := body.Content(moduleSchema)
 	if diag.HasErrors() {
 		return nil, errors.New(diag.Error())
 	}
@@ -79,14 +80,21 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		Functions: defaultFunctions,
 	}
 
-	schema = &hcl.BodySchema{
+	moduleSchema = &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{
 			{Name: "priority", Required: false},
 			{Name: "disabled", Required: false},
+			{Name: "name", Required: false},
 		},
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "config", LabelNames: []string{}},
-			{Type: "reference", LabelNames: []string{"field", "refer"}},
+			{Type: "reference", LabelNames: []string{"refer"}},
+		},
+	}
+
+	referenceSchema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: "field", Required: false},
 		},
 	}
 
@@ -94,9 +102,13 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 	result := make([]*Definition, 0)
 	for i, m := range modules {
 		moduleId := m.Labels[0]
-		moduleDef := &Definition{Id: moduleId, Priority: priorityBase + i}
+		moduleDef := &Definition{
+			Id:       moduleId,
+			Name:     fmt.Sprintf("$mod_%d", i+1),
+			Priority: priorityBase + i,
+		}
 
-		content, diag := m.Body.Content(schema)
+		content, diag := m.Body.Content(moduleSchema)
 		if diag.HasErrors() {
 			return nil, errors.New(diag.Error())
 		}
@@ -112,6 +124,8 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 				moduleDef.Priority = PriorityFromCty(value)
 			case "disabled":
 				moduleDef.Disabled, _ = BoolFromCty(value)
+			case "name":
+				moduleDef.Name = StringFromCty(value)
 			}
 		}
 		for _, c := range content.Blocks {
@@ -122,15 +136,29 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 				}
 				moduleDef.Config = obj
 			} else if c.Type == "reference" {
-				if len(c.Labels) != 2 {
-					return nil, fmt.Errorf("reference requires <field> and <refered module id>")
+				refer := c.Labels[0]
+				fieldName := toCamelCase(refer, true)
+				reference, diag := c.Body.Content(referenceSchema)
+				if diag.HasErrors() {
+					return nil, errors.New(diag.Error())
 				}
-				fieldName := c.Labels[0]
-				referId := c.Labels[1]
+				// reference attributes
+				for _, attr := range reference.Attributes {
+					attrName := attr.Name
+					attrValue, diag := attr.Expr.Value(evalCtx)
+					if diag.HasErrors() {
+						return nil, errors.New(diag.Error())
+					}
+					switch attrName {
+					case "field":
+						fieldName = StringFromCty(attrValue)
+					}
+				}
+
 				if moduleDef.References == nil {
 					moduleDef.References = make(map[string]string)
 				}
-				moduleDef.References[fieldName] = referId
+				moduleDef.References[fieldName] = refer
 			} else {
 				return nil, fmt.Errorf("unknown block %s", c.Type)
 			}

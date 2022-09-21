@@ -140,16 +140,16 @@ func (this *boot) Startup() error {
 		if len(wrap.definition.References) == 0 {
 			continue
 		}
-		for fieldName, referId := range wrap.definition.References {
+		for fieldName, referer := range wrap.definition.References {
 			var referMod Boot
 			for _, w := range this.wrappers {
-				if w.id == referId {
+				if w.definition.Name == referer || w.id == referer {
 					referMod = w.real
 					break
 				}
 			}
 			if referMod == nil {
-				return fmt.Errorf("%s %s reference to %s, not found", wrap.id, fieldName, referId)
+				return fmt.Errorf("%s %s reference to %s, not found", wrap.id, fieldName, referer)
 			}
 			mod := reflect.ValueOf(wrap.real)
 			field := reflect.Indirect(mod).FieldByName(fieldName)

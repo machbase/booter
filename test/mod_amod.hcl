@@ -1,5 +1,5 @@
 
-module "github.com/amod" {
+module "github.com/booter/amod" {
     priority = GLOBAL_BASE_PRIORITY_APP + 1
     config {
         TcpConfig {
@@ -17,5 +17,11 @@ module "github.com/amod" {
             }
         }
     }
-    reference "Bmod" "github.com/bmod" { }
+    // reference field "Bmod" infered by camel case of module name "bmod"
+    reference "bmod" { }
+
+    // explicitly assigned field "OtherNameForBmod"
+    reference "bmod" {
+        field = "OtherNameForBmod"
+    }
 }
