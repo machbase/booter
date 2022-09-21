@@ -70,7 +70,7 @@ func Startup() {
 			writer = os.Stdout
 		}
 	}
-	bootlog = log.New(writer, fmt.Sprintf("boot-%s", conf.Pname), log.LstdFlags|log.Lmsgprefix)
+	bootlog = log.New(writer, fmt.Sprintf("boot-%s ", conf.Pname), log.LstdFlags|log.Lmsgprefix)
 	bootlog.Println("pid:", os.Getpid())
 
 	if len(conf.PidFile) > 0 {
