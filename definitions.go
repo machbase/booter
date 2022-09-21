@@ -78,7 +78,7 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 
 	evalCtx := &hcl.EvalContext{
 		Variables: variables,
-		Functions: defaultFunctions,
+		Functions: predefFunctions,
 	}
 
 	moduleSchema = &hcl.BodySchema{

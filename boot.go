@@ -22,12 +22,18 @@ type Booter interface {
 	GetDefinition(id string) *Definition
 	GetInstance(id string) Boot
 	GetConfig(id string) any
+
+	AddStartupHook(hooks ...func())
+	AddShutdownHook(hooks ...func())
 }
 
 type boot struct {
 	moduleDefs []*Definition
 	wrappers   []wrapper
 	quitChan   chan os.Signal
+
+	startupHooks  []func()
+	shutdownHooks []func()
 }
 
 type wrapper struct {
@@ -64,13 +70,6 @@ func NewWithFiles(files []string) (Booter, error) {
 	return NewWithDefinitions(definitions)
 }
 
-func NewWithDefinitions(definitions []*Definition) (Booter, error) {
-	b := &boot{
-		moduleDefs: definitions,
-	}
-	return b, nil
-}
-
 func NewWithDir(configDir string) (Booter, error) {
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
@@ -87,15 +86,21 @@ func NewWithDir(configDir string) (Booter, error) {
 	return NewWithFiles(files)
 }
 
-var startupHooks = make([]func(), 0)
-var shutdownHooks = make([]func(), 0)
-
-func AddStartupHook(hooks ...func()) {
-	startupHooks = append(startupHooks, hooks...)
+func NewWithDefinitions(definitions []*Definition) (Booter, error) {
+	b := &boot{
+		moduleDefs:    definitions,
+		startupHooks:  make([]func(), 0),
+		shutdownHooks: make([]func(), 0),
+	}
+	return b, nil
 }
 
-func AddShutdownHook(hooks ...func()) {
-	shutdownHooks = append(shutdownHooks, hooks...)
+func (this *boot) AddStartupHook(hooks ...func()) {
+	this.startupHooks = append(this.startupHooks, hooks...)
+}
+
+func (this *boot) AddShutdownHook(hooks ...func()) {
+	this.shutdownHooks = append(this.shutdownHooks, hooks...)
 }
 
 func (this *boot) Startup() error {
@@ -173,7 +178,7 @@ func (this *boot) Startup() error {
 		wrap.state = Starting
 	}
 
-	for _, hook := range startupHooks {
+	for _, hook := range this.startupHooks {
 		hook()
 	}
 
@@ -194,7 +199,7 @@ func (this *boot) Shutdown() {
 	for _, wrap := range this.wrappers {
 		wrap.state = Stopping
 	}
-	for _, hook := range shutdownHooks {
+	for _, hook := range this.shutdownHooks {
 		hook()
 	}
 	for i := len(this.wrappers) - 1; i >= 0; i-- {

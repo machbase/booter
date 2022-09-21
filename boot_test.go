@@ -8,6 +8,8 @@ import (
 
 	"github.com/machbase/booter"
 	"github.com/pkg/errors"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -42,6 +44,16 @@ func TestMain(m *testing.M) {
 			}
 			return instance, nil
 		})
+
+	var GetVersionFunc = function.New(&function.Spec{
+		Params: []function.Parameter{},
+		Type:   function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			return cty.StringVal("1.2.3"), nil
+		},
+	})
+
+	booter.SetFunction("version", GetVersionFunc)
 	m.Run()
 }
 
@@ -72,6 +84,7 @@ func TestBoot(t *testing.T) {
 	assert.Equal(t, "./test/test_server_cert.pem", aconf.TcpConfig.Tls.CertFile)
 	assert.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
 	assert.Equal(t, 5*time.Second, aconf.TcpConfig.Tls.HandshakeTimeout)
+	assert.Equal(t, "1.2.3", aconf.Version)
 
 	def = b.GetDefinition(BmodId)
 	assert.NotNil(t, def)
@@ -91,6 +104,7 @@ func TestBoot(t *testing.T) {
 }
 
 type AmodConf struct {
+	Version   string
 	TcpConfig TcpConfig
 }
 

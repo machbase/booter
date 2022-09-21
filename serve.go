@@ -98,6 +98,14 @@ func NotifySignal() {
 	Server.NotifySignal()
 }
 
+func AddStartupHook(hooks ...func()) {
+	Server.AddStartupHook(hooks...)
+}
+
+func AddShutdownHook(hooks ...func()) {
+	Server.AddShutdownHook(hooks...)
+}
+
 func GetDefinition(id string) *Definition {
 	return Server.GetDefinition(id)
 }

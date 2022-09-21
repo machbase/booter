@@ -9,7 +9,11 @@ import (
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
-var defaultFunctions = map[string]function.Function{
+func SetFunction(name string, f function.Function) {
+	predefFunctions[name] = f
+}
+
+var predefFunctions = map[string]function.Function{
 	"env":         GetEnvFunc,
 	"envOrError":  GetEnv2Func,
 	"flag":        GetFlagFunc,
