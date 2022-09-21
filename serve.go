@@ -125,7 +125,12 @@ func AddStartupHook(hooks ...func()) {
 }
 
 func AddShutdownHook(hooks ...func()) {
-	defaultBuilder.AddShutdownHook(hooks...)
+	// booter가 시작되고 나면 builder에 hook을 추가하는 것은 의미가 없다.
+	if defaultBooter == nil {
+		defaultBuilder.AddShutdownHook(hooks...)
+	} else {
+		defaultBooter.AddShutdownHook(hooks...)
+	}
 }
 
 func GetDefinition(id string) *Definition {

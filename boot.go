@@ -101,6 +101,8 @@ type Booter interface {
 	GetDefinition(id string) *Definition
 	GetInstance(id string) Boot
 	GetConfig(id string) any
+
+	AddShutdownHook(...func())
 }
 
 type boot struct {
@@ -259,6 +261,10 @@ func (this *boot) NotifySignal() {
 	if this.quitChan != nil {
 		this.quitChan <- syscall.SIGINT
 	}
+}
+
+func (this *boot) AddShutdownHook(f ...func()) {
+	this.shutdownHooks = append(this.shutdownHooks, f...)
 }
 
 func (this *boot) GetDefinition(id string) *Definition {
