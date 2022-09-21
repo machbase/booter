@@ -18,6 +18,8 @@ var predefFunctions = map[string]function.Function{
 	"envOrError":  GetEnv2Func,
 	"flag":        GetFlagFunc,
 	"flagOrError": GetFlag2Func,
+	"pname":       GetPnameFunc,
+	"version":     GetVersionFunc,
 	"upper":       stdlib.UpperFunc,
 	"lower":       stdlib.LowerFunc,
 	"min":         stdlib.MinFunc,
@@ -25,6 +27,22 @@ var predefFunctions = map[string]function.Function{
 	"strlen":      stdlib.StrlenFunc,
 	"substr":      stdlib.SubstrFunc,
 }
+
+var GetPnameFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		return cty.StringVal(Pname()), nil
+	},
+})
+
+var GetVersionFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		return cty.StringVal(VersionString()), nil
+	},
+})
 
 var GetEnv2Func = function.New(&function.Spec{
 	Params: []function.Parameter{

@@ -15,6 +15,8 @@ type Config struct {
 	PidFile     string
 	Pname       string
 	ConfDir     string
+
+	versionString string
 }
 
 var defaultBooter Booter
@@ -121,6 +123,14 @@ func GetConfig(id string) any {
 
 func Pname() string {
 	return conf.Pname
+}
+
+func VersionString() string {
+	return conf.versionString
+}
+
+func SetVersionString(str string) {
+	conf.versionString = str
 }
 
 func serve(conf *Config) {
