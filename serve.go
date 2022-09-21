@@ -1,10 +1,12 @@
 package booter
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -35,6 +37,20 @@ func Startup() {
 		PidFile:     "./boot.pid",
 		Pname:       "noname",
 	}
+
+	flag.Usage = func() {
+		bin, _ := os.Executable()
+		bin = filepath.Base(bin)
+		fmt.Println(bin, "options...")
+		fmt.Println("   --config-dir, -c <path> ", "config directory path")
+		fmt.Println("   --pname <name>          ", "assign process name (default noname)")
+		fmt.Println("   --pid <path>            ", "write pid (default ./boot.pid)")
+		fmt.Println("   --bootlog <path>        ", "boot log path (default ./boot.log)")
+		fmt.Println("   --daemon, -d            ", "run process in background, daemonize")
+		fmt.Println("   --help, -h              ", "print this message")
+		fmt.Println("")
+	}
+
 	for i := 0; i < len(os.Args); i++ {
 		if len(os.Args[i]) <= 2 || os.Args[i][0] != '-' || os.Args[i][1] != '-' {
 			continue
@@ -50,6 +66,9 @@ func Startup() {
 			conf.Pname = os.Args[i+1]
 		case "--config-dir", "-c":
 			conf.ConfDir = os.Args[i+1]
+		case "--help", "-h":
+			flag.Usage()
+			os.Exit(0)
 		}
 	}
 

@@ -243,6 +243,7 @@ func (this *boot) Shutdown() {
 		instance.Stop()
 		wrap.state = Stop
 	}
+	os.Exit(0)
 }
 
 func (this *boot) WaitSignal() {
