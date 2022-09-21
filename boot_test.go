@@ -69,7 +69,8 @@ func TestParser(t *testing.T) {
 }
 
 func TestBoot(t *testing.T) {
-	b, err := booter.NewWithDir("./test")
+	builder := booter.NewBuilder()
+	b, err := builder.BuildWithDir("./test")
 	assert.Nil(t, err)
 
 	err = b.Startup()

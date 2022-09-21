@@ -10,7 +10,86 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/zclconf/go-cty/cty/function"
 )
+
+type Builder interface {
+	Build(content []byte) (Booter, error)
+	BuildWithFiles(files []string) (Booter, error)
+	BuildWithDir(configDir string) (Booter, error)
+
+	AddStartupHook(hooks ...func())
+	AddShutdownHook(hooks ...func())
+	SetFunction(name string, f function.Function)
+}
+
+type builder struct {
+	startupHooks  []func()
+	shutdownHooks []func()
+}
+
+func NewBuilder() Builder {
+	b := &builder{}
+	return b
+}
+
+func (this *builder) Build(content []byte) (Booter, error) {
+	definitions, err := LoadDefinitions(content)
+	if err != nil {
+		return nil, err
+	}
+	b, err := NewWithDefinitions(definitions)
+	if err != nil {
+		return nil, err
+	}
+	rt := b.(*boot)
+	rt.startupHooks = this.startupHooks
+	rt.shutdownHooks = this.shutdownHooks
+	return rt, nil
+}
+
+func (this *builder) BuildWithFiles(files []string) (Booter, error) {
+	definitions, err := LoadDefinitionFiles(files)
+	if err != nil {
+		return nil, err
+	}
+	b, err := NewWithDefinitions(definitions)
+	if err != nil {
+		return nil, err
+	}
+	rt := b.(*boot)
+	rt.startupHooks = this.startupHooks
+	rt.shutdownHooks = this.shutdownHooks
+	return rt, nil
+}
+
+func (this *builder) BuildWithDir(configDir string) (Booter, error) {
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid config directory")
+	}
+
+	files := make([]string, 0)
+	for _, file := range entries {
+		if !strings.HasSuffix(file.Name(), ".hcl") {
+			continue
+		}
+		files = append(files, filepath.Join(configDir, file.Name()))
+	}
+	return this.BuildWithFiles(files)
+}
+
+func (this *builder) AddStartupHook(hooks ...func()) {
+	this.startupHooks = append(this.startupHooks, hooks...)
+}
+
+func (this *builder) AddShutdownHook(hooks ...func()) {
+	this.shutdownHooks = append(this.shutdownHooks, hooks...)
+}
+
+func (this *builder) SetFunction(name string, f function.Function) {
+	SetFunction(name, f)
+}
 
 type Booter interface {
 	Startup() error
@@ -22,9 +101,6 @@ type Booter interface {
 	GetDefinition(id string) *Definition
 	GetInstance(id string) Boot
 	GetConfig(id string) any
-
-	AddStartupHook(hooks ...func())
-	AddShutdownHook(hooks ...func())
 }
 
 type boot struct {
@@ -54,53 +130,11 @@ const (
 	Stop
 )
 
-func New(content []byte) (Booter, error) {
-	definitions, err := LoadDefinitions(content)
-	if err != nil {
-		return nil, err
-	}
-	return NewWithDefinitions(definitions)
-}
-
-func NewWithFiles(files []string) (Booter, error) {
-	definitions, err := LoadDefinitionFiles(files)
-	if err != nil {
-		return nil, err
-	}
-	return NewWithDefinitions(definitions)
-}
-
-func NewWithDir(configDir string) (Booter, error) {
-	entries, err := os.ReadDir(configDir)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid config directory")
-	}
-
-	files := make([]string, 0)
-	for _, file := range entries {
-		if !strings.HasSuffix(file.Name(), ".hcl") {
-			continue
-		}
-		files = append(files, filepath.Join(configDir, file.Name()))
-	}
-	return NewWithFiles(files)
-}
-
 func NewWithDefinitions(definitions []*Definition) (Booter, error) {
 	b := &boot{
-		moduleDefs:    definitions,
-		startupHooks:  make([]func(), 0),
-		shutdownHooks: make([]func(), 0),
+		moduleDefs: definitions,
 	}
 	return b, nil
-}
-
-func (this *boot) AddStartupHook(hooks ...func()) {
-	this.startupHooks = append(this.startupHooks, hooks...)
-}
-
-func (this *boot) AddShutdownHook(hooks ...func()) {
-	this.shutdownHooks = append(this.shutdownHooks, hooks...)
 }
 
 func (this *boot) Startup() error {

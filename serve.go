@@ -17,7 +17,8 @@ type Config struct {
 	ConfDir     string
 }
 
-var Server Booter
+var defaultBooter Booter
+var defaultBuilder = NewBuilder()
 var conf *Config
 var bootlog *log.Logger
 
@@ -87,35 +88,35 @@ func Startup() {
 }
 
 func Shutdown() {
-	Server.Shutdown()
+	defaultBooter.Shutdown()
 }
 
 func WaitSignal() {
-	Server.WaitSignal()
+	defaultBooter.WaitSignal()
 }
 
 func NotifySignal() {
-	Server.NotifySignal()
+	defaultBooter.NotifySignal()
 }
 
 func AddStartupHook(hooks ...func()) {
-	Server.AddStartupHook(hooks...)
+	defaultBuilder.AddStartupHook(hooks...)
 }
 
 func AddShutdownHook(hooks ...func()) {
-	Server.AddShutdownHook(hooks...)
+	defaultBuilder.AddShutdownHook(hooks...)
 }
 
 func GetDefinition(id string) *Definition {
-	return Server.GetDefinition(id)
+	return defaultBooter.GetDefinition(id)
 }
 
 func GetInstance(id string) Boot {
-	return Server.GetInstance(id)
+	return defaultBooter.GetInstance(id)
 }
 
 func GetConfig(id string) any {
-	return Server.GetInstance(id)
+	return defaultBooter.GetInstance(id)
 }
 
 func Pname() string {
@@ -124,19 +125,19 @@ func Pname() string {
 
 func serve(conf *Config) {
 	var err error
-	Server, err = NewWithDir(conf.ConfDir)
+	defaultBooter, err = defaultBuilder.BuildWithDir(conf.ConfDir)
 	if err != nil {
 		panic(err)
 	}
 
 	bootlog.Println("startup", conf.Pname)
-	err = Server.Startup()
+	err = defaultBooter.Startup()
 	if err != nil {
 		panic(err)
 	}
 
-	Server.WaitSignal()
+	defaultBooter.WaitSignal()
 
 	bootlog.Println("shutdown", conf.Pname)
-	Server.Shutdown()
+	defaultBooter.Shutdown()
 }
