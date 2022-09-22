@@ -104,6 +104,10 @@ func Shutdown() {
 	defaultBooter.Shutdown()
 }
 
+func ShutdownAndExit(exitCode int) {
+	defaultBooter.ShutdownAndExit(exitCode)
+}
+
 func WaitSignal() {
 	defaultBooter.WaitSignal()
 }

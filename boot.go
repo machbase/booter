@@ -94,6 +94,7 @@ func (this *builder) SetFunction(name string, f function.Function) {
 type Booter interface {
 	Startup() error
 	Shutdown()
+	ShutdownAndExit(exitCode int)
 
 	WaitSignal()
 	NotifySignal()
