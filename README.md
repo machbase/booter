@@ -76,6 +76,9 @@ module "my_project/module_b" {
 - `flagOrError(name)` 명령행 인자를 반환, 없으면 에러를 발생하고 booter가 종료된다. ex)`flagOrError("--log-dir")`
 - `pname()` booter 실행시 지정된 pname을 반환한다.
 - `version()` 애플리케이션이 `booter.SetVersionString()`으로 설정한 값을 반환한다.
+- `arg(i, default)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 default를 반환한다.
+- `argOrError(i)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 에러를 발생한다.
+- `arglen()` 명령행 인자 수를 반환
 - `upper(str)`
 - `lower(str)`
 - `min(a, b)`

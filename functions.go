@@ -3,10 +3,12 @@ package booter
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 func SetFunction(name string, f function.Function) {
@@ -18,6 +20,9 @@ var predefFunctions = map[string]function.Function{
 	"envOrError":  GetEnv2Func,
 	"flag":        GetFlagFunc,
 	"flagOrError": GetFlag2Func,
+	"arg":         GetArgFunc,
+	"argOrError":  GetArg2Func,
+	"arglen":      GetArgLenFunc,
 	"pname":       GetPnameFunc,
 	"version":     GetVersionFunc,
 	"upper":       stdlib.UpperFunc,
@@ -41,6 +46,79 @@ var GetVersionFunc = function.New(&function.Spec{
 	Type:   function.StaticReturnType(cty.String),
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		return cty.StringVal(VersionString()), nil
+	},
+})
+
+var GetArgLenFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		return gocty.ToCtyValue(len(os.Args), cty.Number)
+	},
+})
+
+var GetArgFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "argi",
+			Type:             cty.Number,
+			AllowDynamicType: true,
+		},
+		{
+			Name:      "default",
+			Type:      cty.String,
+			AllowNull: true,
+		},
+	},
+	Type: function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		var i int
+		var err error
+		err = gocty.FromCtyValue(args[0], &i)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		a := make([]string, 0)
+		for i, v := range os.Args {
+			if i != 0 && strings.HasPrefix(v, "-") {
+				continue
+			}
+			a = append(a, v)
+		}
+		if i < 0 || i >= len(a) {
+			return args[1], nil
+		}
+		return cty.StringVal(a[i]), nil
+	},
+})
+
+var GetArg2Func = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "argi",
+			Type:             cty.Number,
+			AllowDynamicType: true,
+		},
+	},
+	Type: function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		var i int
+		var err error
+		err = gocty.FromCtyValue(args[0], &i)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		a := make([]string, 0)
+		for i, v := range os.Args {
+			if i != 0 && strings.HasPrefix(v, "-") {
+				continue
+			}
+			a = append(a, v)
+		}
+		if i < 0 || i >= len(a) {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(a[i]), nil
 	},
 })
 

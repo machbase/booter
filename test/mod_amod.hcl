@@ -3,7 +3,7 @@ module "github.com/booter/amod" {
     name     = "amod"
     priority = GLOBAL_BASE_PRIORITY_APP + 1
     config {
-        Version = version()
+        Version = customfunc()
         TcpConfig {
             ListenAddress    = "${GLOBAL_IP_BIND}:1884"
             AdvertiseAddress = "${GLOBAL_IP_ADVERTISE}:1884"

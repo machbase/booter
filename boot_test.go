@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 		},
 	})
 
-	booter.SetFunction("version", GetVersionFunc)
+	booter.SetFunction("customfunc", GetVersionFunc)
 	m.Run()
 }
 
