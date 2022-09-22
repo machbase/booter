@@ -289,4 +289,7 @@ func parseflags() {
 		flag.Usage()
 		os.Exit(1)
 	}
+	if len(conf.Pname) == 0 {
+		conf.Pname = fmt.Sprintf("boot-%d", os.Getpid())
+	}
 }
