@@ -11,7 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var AmodId = "github.com/booter/amod"
@@ -64,42 +64,46 @@ func TestParser(t *testing.T) {
 		"./test/mod_bmod.hcl",
 		"./test/mod_others.hcl",
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(defs))
+	require.Nil(t, err)
+	require.Equal(t, 3, len(defs))
 }
 
 func TestBoot(t *testing.T) {
 	builder := booter.NewBuilder()
 	b, err := builder.BuildWithDir("./test")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = b.Startup()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	def := b.GetDefinition(AmodId)
-	assert.NotNil(t, def)
-	assert.Equal(t, 201, def.Priority)
-	assert.Equal(t, false, def.Disabled)
+	require.NotNil(t, def)
+	require.Equal(t, 201, def.Priority)
+	require.Equal(t, false, def.Disabled)
 	aconf := b.GetConfig(AmodId).(*AmodConf)
-	assert.Equal(t, true, aconf.TcpConfig.Tls.LoadPrivateCAs)
-	assert.Equal(t, "./test/test_server_cert.pem", aconf.TcpConfig.Tls.CertFile)
-	assert.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
-	assert.Equal(t, 5*time.Second, aconf.TcpConfig.Tls.HandshakeTimeout)
-	assert.Equal(t, "1.2.3", aconf.Version)
+	require.Equal(t, true, aconf.TcpConfig.Tls.LoadPrivateCAs)
+	require.Equal(t, "./test/test_server_cert.pem", aconf.TcpConfig.Tls.CertFile)
+	require.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
+	require.Equal(t, 5*time.Second, aconf.TcpConfig.Tls.HandshakeTimeout)
+	require.Equal(t, "1.2.3", aconf.Version)
+	// check if injection works
+	amod := b.GetInstance(AmodId).(*Amod)
+	require.NotNil(t, amod)
+	require.NotNil(t, amod.Bmod)
 
 	def = b.GetDefinition(BmodId)
-	assert.NotNil(t, def)
-	assert.Equal(t, 202, def.Priority)
-	assert.Equal(t, false, def.Disabled)
+	require.NotNil(t, def)
+	require.Equal(t, 202, def.Priority)
+	require.Equal(t, false, def.Disabled)
 	bconf := b.GetConfig(BmodId).(*BmodConf)
-	assert.Equal(t, fmt.Sprintf("%s/./tmp/cmqd00.log", os.Getenv("HOME")), bconf.Filename)
-	assert.Equal(t, true, bconf.Append)
-	assert.Equal(t, "@midnight", bconf.RotateSchedule)
-	assert.Equal(t, 3, bconf.MaxBackups)
-	assert.Equal(t, 3, len(bconf.Levels))
-	assert.Equal(t, 30, bconf.DefaultPrefixWidth)
-	assert.Equal(t, "WARN", bconf.DefaultLevel)
-	assert.Equal(t, true, bconf.DefaultEnableSourceLocation)
+	require.Equal(t, fmt.Sprintf("%s/./tmp/cmqd00.log", os.Getenv("HOME")), bconf.Filename)
+	require.Equal(t, true, bconf.Append)
+	require.Equal(t, "@midnight", bconf.RotateSchedule)
+	require.Equal(t, 3, bconf.MaxBackups)
+	require.Equal(t, 3, len(bconf.Levels))
+	require.Equal(t, 30, bconf.DefaultPrefixWidth)
+	require.Equal(t, "WARN", bconf.DefaultLevel)
+	require.Equal(t, true, bconf.DefaultEnableSourceLocation)
 
 	b.Shutdown()
 }
@@ -137,7 +141,7 @@ func (this *Amod) Start() error {
 	fmt.Printf("    with Amod.Bmod             = %p\n", this.Bmod)
 	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", this.OtherNameForBmod)
 	if this.Bmod != this.OtherNameForBmod {
-		return errors.New("wrong references")
+		return errors.New("amod.Bmod and amod.OtherNameForBmod has different references")
 	}
 	return nil
 }

@@ -14,12 +14,17 @@ import (
 )
 
 type Definition struct {
-	Id         string
-	Name       string
-	Priority   int
-	Disabled   bool
-	Config     cty.Value
-	References map[string]string // key: fieldName, value: reference module id
+	Id       string
+	Name     string
+	Priority int
+	Disabled bool
+	Config   cty.Value
+	Injects  []InjectionDef // key: target module id, value: fieldName
+}
+
+type InjectionDef struct {
+	Target    string
+	FieldName string
 }
 
 func LoadDefinitionFiles(files []string) ([]*Definition, error) {
@@ -90,12 +95,14 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "config", LabelNames: []string{}},
 			{Type: "reference", LabelNames: []string{"refer"}},
+			{Type: "inject", LabelNames: []string{}},
 		},
 	}
 
-	referenceSchema := &hcl.BodySchema{
+	injectSchema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{
-			{Name: "field", Required: false},
+			{Name: "target", Required: true},
+			{Name: "field", Required: true},
 		},
 	}
 
@@ -140,15 +147,15 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 					return nil, err
 				}
 				moduleDef.Config = obj
-			} else if c.Type == "reference" {
-				refer := c.Labels[0]
-				fieldName := toCamelCase(refer, true)
-				reference, diag := c.Body.Content(referenceSchema)
+			} else if c.Type == "inject" {
+				target := ""
+				fieldName := ""
+				inject, diag := c.Body.Content(injectSchema)
 				if diag.HasErrors() {
 					return nil, errors.New(diag.Error())
 				}
-				// reference attributes
-				for _, attr := range reference.Attributes {
+				// inject attributes
+				for _, attr := range inject.Attributes {
 					attrName := attr.Name
 					attrValue, diag := attr.Expr.Value(evalCtx)
 					if diag.HasErrors() {
@@ -157,13 +164,20 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 					switch attrName {
 					case "field":
 						fieldName = StringFromCty(attrValue)
+					case "target":
+						target = StringFromCty(attrValue)
 					}
 				}
-
-				if moduleDef.References == nil {
-					moduleDef.References = make(map[string]string)
+				if target == "" {
+					return nil, fmt.Errorf("module %s inject target not defined", moduleDef.Id)
 				}
-				moduleDef.References[fieldName] = refer
+				if fieldName == "" {
+					return nil, fmt.Errorf("module %s inject %s requires target field", moduleDef.Id, target)
+				}
+				if moduleDef.Injects == nil {
+					moduleDef.Injects = []InjectionDef{}
+				}
+				moduleDef.Injects = append(moduleDef.Injects, InjectionDef{Target: target, FieldName: fieldName})
 			} else {
 				return nil, fmt.Errorf("unknown block %s", c.Type)
 			}

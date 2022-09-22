@@ -16,4 +16,15 @@ module "github.com/booter/bmod" {
             { Pattern="cemlib", Level="TRACE" },
         ]
     }
+    // reference field "Bmod" infered by camel case of module name "bmod"
+    inject { 
+        target = "amod"
+        field  = "Bmod" 
+    }
+
+    // explicitly assigned field "OtherNameForBmod"
+    inject { 
+        target = "amod"
+        field  = "OtherNameForBmod" 
+    }
 }

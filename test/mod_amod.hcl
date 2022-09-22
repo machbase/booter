@@ -1,5 +1,6 @@
 
 module "github.com/booter/amod" {
+    name     = "amod"
     priority = GLOBAL_BASE_PRIORITY_APP + 1
     config {
         Version = version()
@@ -17,12 +18,5 @@ module "github.com/booter/amod" {
                 HandshakeTimeout = "5s" // equivalent 5000000000
             }
         }
-    }
-    // reference field "Bmod" infered by camel case of module name "bmod"
-    reference "bmod" { }
-
-    // explicitly assigned field "OtherNameForBmod"
-    reference "bmod" {
-        field = "OtherNameForBmod"
     }
 }

@@ -182,31 +182,31 @@ func (this *boot) Startup() error {
 		this.wrappers = append(this.wrappers, wrap)
 	}
 
-	// assign references
+	// dependency injection
 	for _, wrap := range this.wrappers {
-		if len(wrap.definition.References) == 0 {
+		if len(wrap.definition.Injects) == 0 {
 			continue
 		}
-		for fieldName, referer := range wrap.definition.References {
-			var referMod Boot
+		for _, inj := range wrap.definition.Injects {
+			var targetMod Boot
 			for _, w := range this.wrappers {
-				if w.definition.Name == referer || w.id == referer {
-					referMod = w.real
+				if w.definition.Name == inj.Target || w.id == inj.Target {
+					targetMod = w.real
 					break
 				}
 			}
-			if referMod == nil {
-				return fmt.Errorf("%s %s reference to %s, not found", wrap.id, fieldName, referer)
+			if targetMod == nil {
+				return fmt.Errorf("%s inject into %s, not found", wrap.id, inj.Target)
 			}
-			mod := reflect.ValueOf(wrap.real)
-			field := reflect.Indirect(mod).FieldByName(fieldName)
+			mod := reflect.ValueOf(targetMod)
+			field := reflect.Indirect(mod).FieldByName(inj.FieldName)
 			if !field.IsValid() {
-				return fmt.Errorf("%s %s is not accessible", wrap.id, fieldName)
+				return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
 			}
-			field.Set(reflect.ValueOf(referMod))
+			bootlog.Println(wrap.definition.Name, "inject", inj.FieldName)
+			field.Set(reflect.ValueOf(wrap.real))
 		}
 	}
-
 	bootlog.Println(len(this.wrappers), "modules enabled")
 
 	// pre-start
@@ -245,7 +245,11 @@ func (this *boot) Shutdown() {
 		instance.Stop()
 		wrap.state = Stop
 	}
-	os.Exit(0)
+}
+
+func (this *boot) ShutdownAndExit(exitCode int) {
+	this.Shutdown()
+	os.Exit(exitCode)
 }
 
 func (this *boot) WaitSignal() {
