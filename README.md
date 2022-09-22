@@ -48,12 +48,12 @@ module 정의 내에서는 위에서 `define`으로 정의한 변수와 미리 �
 
 ```
 module "my_project/module_a" {
-    diabled = lower(IP_ADDR) == "127.0.0.1" ? true : false
+    diabled = lower(VARS_IP_ADDR) == "127.0.0.1" ? true : false
     config {
         DebugMode      = VARS_DEBUG_MODE
         ListenAddress  = VARS_IP_ADDR 
         LogFilePath    = "${VARS_LOG_DIR}/my.log"
-        HomePath       = env("HOME")
+        HomePath       = env("HOME", "/home/my")
         Madatory       = envOrError("APP_VALUE")
     }
     reference "module_b" {
@@ -61,7 +61,7 @@ module "my_project/module_a" {
     }
 }
 
-module my_project/module_b {
+module "my_project/module_b" {
     name = "module_b"
 }
 
@@ -73,7 +73,7 @@ module my_project/module_b {
 - `flag(name, default)` 명령행 인자를 반환, 없으면 default를 반환한다. ex) `flag("--log-dir", "./tmp")`
 - `flagOrError(name)` 명령행 인자를 반환, 없으면 에러를 발생하고 booter가 종료된다. ex)`flagOrError("--log-dir")`
 - `pname()` booter 실행시 지정된 pname을 반환한다.
-- `version()` 애플리케이션이 `booter.SetVersionString()`으로 지정한 값을 반환한다.
+- `version()` 애플리케이션이 `booter.SetVersionString()`으로 설정한 값을 반환한다.
 - `upper(str)`
 - `lower(str)`
 - `min(a, b)`
@@ -84,7 +84,8 @@ module my_project/module_b {
 애플리케이션은 `booter.Startup()`을 호출하기 전에 `booter.SetFunction(name, function.Function)`으로 추가 함수를 정의할 수 있다.
 
 > 일반적으로 응용프로그램에서는 설정값을 "기본값 -> 환경변수 -> 설정파일 -> 명령행 인자" 에서 참조하는데 다음과 같이 구현할 수 있다.
-`MyPath="${flag("--my-path", env("MY_PATH", "/home/me"))}"`
+`MyPath = flag("--my-path", env("MY_PATH", "/home/me"))}`
+
 ### module 정의하기
 
 직접 작성한 모듈을 booter의 config내에서 사용하기위해서는 booter가 시작되기 전에 booter의 레지스트리에 등록하는 절차가 필요하다. 일반적으로 init() 함수내에서 등록을 하도록 한다.
