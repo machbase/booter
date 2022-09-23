@@ -17,14 +17,8 @@ module "github.com/booter/bmod" {
         ]
     }
     // reference field "Bmod" infered by camel case of module name "bmod"
-    inject { 
-        target = "amod"
-        field  = "Bmod" 
-    }
+    inject amod Bmod {}
 
     // explicitly assigned field "OtherNameForBmod"
-    inject { 
-        target = "amod"
-        field  = "OtherNameForBmod" 
-    }
+    inject amod OtherNameForBmod {}
 }
