@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -74,9 +75,16 @@ func (this *builder) BuildWithDir(configDir string) (Booter, error) {
 		if !strings.HasSuffix(file.Name(), ".hcl") {
 			continue
 		}
-		files = append(files, filepath.Join(configDir, file.Name()))
+		files = append(files, file.Name())
 	}
-	return this.BuildWithFiles(files)
+	sort.Slice(files, func(i, j int) bool {
+		return files[i] < files[j]
+	})
+	result := make([]string, 0)
+	for _, file := range files {
+		result = append(result, filepath.Join(configDir, file))
+	}
+	return this.BuildWithFiles(result)
 }
 
 func (this *builder) AddStartupHook(hooks ...func()) {

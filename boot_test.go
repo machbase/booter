@@ -59,13 +59,20 @@ func TestMain(m *testing.M) {
 
 func TestParser(t *testing.T) {
 	defs, err := booter.LoadDefinitionFiles([]string{
-		"./test/env.hcl",
-		"./test/mod_amod.hcl",
-		"./test/mod_bmod.hcl",
-		"./test/mod_others.hcl",
+		"./test/999_mod_others.hcl",
+		"./test/000_mod_env.hcl",
+		"./test/002_mod_bmod.hcl",
+		"./test/001_mod_amod.hcl",
 	})
 	require.Nil(t, err)
 	require.Equal(t, 3, len(defs))
+}
+
+func TestParserDir(t *testing.T) {
+	builder := booter.NewBuilder()
+	bt, err := builder.BuildWithDir("./test")
+	require.Nil(t, err)
+	require.NotNil(t, bt)
 }
 
 func TestBoot(t *testing.T) {

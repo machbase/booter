@@ -197,7 +197,7 @@ func LoadFile(files ...string) (hcl.Body, error) {
 		if err != nil {
 			return nil, err
 		}
-		hclFile, hclDiag := hclsyntax.ParseConfig(content, file, hcl.Pos{})
+		hclFile, hclDiag := hclsyntax.ParseConfig(content, file, hcl.Pos{Line: 1})
 		if hclDiag.HasErrors() {
 			return nil, errors.New(hclDiag.Error())
 		}
@@ -207,7 +207,7 @@ func LoadFile(files ...string) (hcl.Body, error) {
 }
 
 func Load(content []byte) (hcl.Body, error) {
-	hclFile, hclDiag := hclsyntax.ParseConfig(content, "nofile.hcl", hcl.Pos{})
+	hclFile, hclDiag := hclsyntax.ParseConfig(content, "nofile.hcl", hcl.Pos{Line: 1})
 	if hclDiag.HasErrors() {
 		return nil, errors.New(hclDiag.Error())
 	}

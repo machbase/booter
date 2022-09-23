@@ -17,6 +17,7 @@ type Config struct {
 	PidFile     string
 	Pname       string
 	ConfDir     string
+	ConfFile    string
 
 	flags         map[BootFlagType]BootFlag
 	versionString string
@@ -34,7 +35,8 @@ type BootFlagType int
 
 const (
 	noneFlag BootFlagType = iota
-	ConfigFlag
+	ConfigDirFlag
+	ConfigFileFlag
 	PnameFlag
 	PidFlag
 	BootlogFlag
@@ -52,12 +54,13 @@ func init() {
 	bootlog = log.New(os.Stdout, "booter ", log.LstdFlags|log.Lmsgprefix)
 	conf = &Config{
 		flags: map[BootFlagType]BootFlag{
-			ConfigFlag:  {Long: "config-dir", Short: "c", Placeholder: "<path>", Help: "config directory path"},
-			PnameFlag:   {Long: "pname", Placeholder: "<name>", Help: "assign process name"},
-			PidFlag:     {Long: "pid", Placeholder: "<path>", Help: "pid file path"},
-			BootlogFlag: {Long: "bootlog", Placeholder: "<path>", Help: "boot log path"},
-			DaemonFlag:  {Long: "daemon", Short: "d", Help: "run process in background, daemonize"},
-			HelpFlag:    {Long: "help", Short: "h", Help: "print this message"},
+			ConfigDirFlag:  {Long: "config-dir", Placeholder: "<dir>", Help: "config directory path"},
+			ConfigFileFlag: {Long: "config", Short: "c", Placeholder: "<file>", Help: "a single file config"},
+			PnameFlag:      {Long: "pname", Placeholder: "<name>", Help: "assign process name"},
+			PidFlag:        {Long: "pid", Placeholder: "<path>", Help: "pid file path"},
+			BootlogFlag:    {Long: "bootlog", Placeholder: "<path>", Help: "boot log path"},
+			DaemonFlag:     {Long: "daemon", Short: "d", Help: "run process in background, daemonize"},
+			HelpFlag:       {Long: "help", Short: "h", Help: "print this message"},
 		},
 	}
 }
@@ -166,7 +169,14 @@ func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string) {
 
 func serve(conf *Config) {
 	var err error
-	defaultBooter, err = defaultBuilder.BuildWithDir(conf.ConfDir)
+	if len(conf.ConfFile) > 0 {
+		defaultBooter, err = defaultBuilder.BuildWithFiles([]string{conf.ConfFile})
+	} else if len(conf.ConfDir) > 0 {
+		defaultBooter, err = defaultBuilder.BuildWithDir(conf.ConfDir)
+	} else {
+		panic(fmt.Errorf("one of --%s --%s should be provided",
+			conf.flags[ConfigDirFlag].Long, conf.flags[ConfigFileFlag].Long))
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -233,8 +243,10 @@ func parseflags() {
 	// init with default values
 	for k, v := range conf.flags {
 		switch k {
-		case ConfigFlag:
+		case ConfigDirFlag:
 			conf.ConfDir = v.Default
+		case ConfigFileFlag:
+			conf.ConfFile = v.Default
 		case PnameFlag:
 			conf.Pname = v.Default
 		case PidFlag:
@@ -272,8 +284,10 @@ func parseflags() {
 		}
 
 		switch matched {
-		case ConfigFlag:
+		case ConfigDirFlag:
 			conf.ConfDir = argv
+		case ConfigFileFlag:
+			conf.ConfFile = argv
 		case PnameFlag:
 			conf.Pname = argv
 		case PidFlag:
@@ -288,8 +302,10 @@ func parseflags() {
 		}
 	}
 
-	if len(conf.ConfDir) == 0 {
-		fmt.Printf("\n  Error: --%s is required\n\n", conf.flags[ConfigFlag].Long)
+	fmt.Println("--->", conf.ConfDir, conf.ConfFile, os.Args)
+	if len(conf.ConfDir) == 0 && len(conf.ConfFile) == 0 {
+		fmt.Printf("\n  Error: at least one of --%s, --%s is required\n\n",
+			conf.flags[ConfigDirFlag].Long, conf.flags[ConfigFileFlag].Long)
 		flag.Usage()
 		os.Exit(1)
 	}
