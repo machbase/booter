@@ -104,6 +104,45 @@ config 객체는 반환전에 default 값들을 채워서 config file에서 지�
    `instnaceFactory`의 반환 타입에서 알 수 있듯이 인스턴스는 `boot.Boot` 인터페이스를 구현해야 한다.
 - `boot.Boot`는 `Start() error` `Stop()` 두 가지 함수를 가진 인터페이스이다.
 
+module example)
+
+```go
+package myserver
+
+func init() {
+    booter.Register("myproject/myserver",
+    func()*Config{
+        // config factory: 디폴트 값을 반환한다.
+        return &Config {
+            Host: "127.0.0.1",
+            Port: 12345,
+        }
+    },
+    func(c *Config)(booter.Boot, error) {
+        // instance factory: booter가 설정파일의 config 블럭을 처리하여 
+        // 변경된 *Config를 입력해 주면 이에 따라 module의 instance를 생성한다.
+        return &server{
+            conf: c,
+        }, nil
+    })
+}
+type Config struct {
+    Host string
+    Port int
+}
+
+type server struct {
+    conf *Config
+}
+
+func (this *server) Start() error {
+    return nil
+}
+
+func (this *server) Stop() {
+}
+```
+
 ### main() 정의하기
 
 다음은 가장 단순형태의 booter application의 main()이다.
