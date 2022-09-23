@@ -67,23 +67,24 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		}
 	}
 
-	variables := make(map[string]cty.Value)
+	evalCtx := &hcl.EvalContext{
+		Functions: predefFunctions,
+		Variables: make(map[string]cty.Value),
+	}
+
+	// variables := make(map[string]cty.Value)
 	for _, d := range defines {
 		id := d.Labels[0]
 		sb := d.Body.(*hclsyntax.Body)
 		for _, attr := range sb.Attributes {
 			name := fmt.Sprintf("%s_%s", id, attr.Name)
-			value, diag := attr.Expr.Value(nil)
+			value, diag := attr.Expr.Value(evalCtx)
 			if diag.HasErrors() {
 				return nil, errors.New(diag.Error())
 			}
-			variables[name] = value
+			evalCtx.Variables[name] = value
+			// variables[name] = value
 		}
-	}
-
-	evalCtx := &hcl.EvalContext{
-		Variables: variables,
-		Functions: predefFunctions,
 	}
 
 	moduleSchema = &hcl.BodySchema{
