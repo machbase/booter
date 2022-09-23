@@ -104,6 +104,7 @@ func Startup() {
 }
 
 func Shutdown() {
+	bootlog.Println("shutdown", conf.Pname)
 	defaultBooter.Shutdown()
 }
 
@@ -186,11 +187,6 @@ func serve(conf *Config) {
 	if err != nil {
 		panic(err)
 	}
-
-	defaultBooter.WaitSignal()
-
-	bootlog.Println("shutdown", conf.Pname)
-	defaultBooter.Shutdown()
 }
 
 func usage() {
@@ -302,7 +298,6 @@ func parseflags() {
 		}
 	}
 
-	fmt.Println("--->", conf.ConfDir, conf.ConfFile, os.Args)
 	if len(conf.ConfDir) == 0 && len(conf.ConfFile) == 0 {
 		fmt.Printf("\n  Error: at least one of --%s, --%s is required\n\n",
 			conf.flags[ConfigDirFlag].Long, conf.flags[ConfigFileFlag].Long)
