@@ -131,6 +131,42 @@ booter가 설정에 따라 application의 모듈들을 성공적으로 시작하
 이 상태에서 booter를 종료하려면 별도의 go routine에서 `booter.NotifySignal()`을 호출하면
 `booter.WaitSignal()`이 반환되고 `booter.Shutdown()`을 통해 프로그램을 정상 종료하도록 한다.
 
+#### csutomize command line arguments
+
+`booter.Startup()`이 실행되면 다음과 같은 기본 명령행 인자를 바탕으로 실행된다.
+이들 중에서 `--config-dir`, `--config` 두 가지 중 하나는 필수 항목이고 그 외의 플래그는 선택사항이다.
+- `--config-dir <dir>` config directory path
+- `-c, --config <file>` a single file config
+- `--pname <name>` process name
+- `--pid <path>` pid file path
+- `--bootlog <path>` boot log path
+- `--d, -daemon` run process in background, daemonize
+- `--help` print this message
+
+> 그 외의 응용프로그램에서 필요한 추가 플래그는 위의 functions에서 설명한 것처럼 설정파일 내에서 `flag()`로 지정하면 된다.
+
+만약 이 파리미터를 변경해야할 필요가 있다면 `booter.Startup()`전에 `booter.SetFlag()`를 호출하여 변경할 수 있다.
+
+```go
+func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string)
+
+const (
+	ConfigDirFlag
+	ConfigFileFlag
+	PnameFlag
+	PidFlag
+	BootlogFlag
+	DaemonFlag
+	HelpFlag
+)
+```
+
+예를 들어 디폴트 플래그 `--config` 를 `--config-file`로 변경한다면 다음과 같이 한다. 
+(shortflag를 사용하지 않으려면 "c" 대신 빈문자열 ""로 설정하면 된다.)
+```go
+booter.SetFlag(ConfigFileFlag, "config-file", "c", "./conf/default.hcl")
+```
+
 ## Developer
 
 ### `.vscode/settings.json`
