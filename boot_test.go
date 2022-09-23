@@ -133,7 +133,7 @@ type TlsConfig struct {
 type Amod struct {
 	conf             *AmodConf
 	Bmod             *Bmod
-	OtherNameForBmod *Bmod
+	OtherNameForBmod BmodInterface
 }
 
 func (this *Amod) Start() error {
@@ -143,6 +143,7 @@ func (this *Amod) Start() error {
 	if this.Bmod != this.OtherNameForBmod {
 		return errors.New("amod.Bmod and amod.OtherNameForBmod has different references")
 	}
+	this.OtherNameForBmod.DoWork()
 	return nil
 }
 
@@ -166,6 +167,10 @@ type LevelConf struct {
 	Level   string
 }
 
+type BmodInterface interface {
+	DoWork()
+}
+
 type Bmod struct {
 	conf BmodConf
 }
@@ -177,4 +182,8 @@ func (this *Bmod) Start() error {
 
 func (this *Bmod) Stop() {
 	fmt.Println("bmod stop")
+}
+
+func (this *Bmod) DoWork() {
+	fmt.Println("bmod work...")
 }
