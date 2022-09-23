@@ -95,16 +95,16 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "config", LabelNames: []string{}},
 			{Type: "reference", LabelNames: []string{"refer"}},
-			{Type: "inject", LabelNames: []string{}},
+			{Type: "inject", LabelNames: []string{"target", "field"}},
 		},
 	}
 
-	injectSchema := &hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{Name: "target", Required: true},
-			{Name: "field", Required: true},
-		},
-	}
+	// injectSchema := &hcl.BodySchema{
+	// 	Attributes: []hcl.AttributeSchema{
+	// 		{Name: "target", Required: true},
+	// 		{Name: "field", Required: true},
+	// 	},
+	// }
 
 	priorityBase := 1000
 	result := make([]*Definition, 0)
@@ -148,26 +148,26 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 				}
 				moduleDef.Config = obj
 			} else if c.Type == "inject" {
-				target := ""
-				fieldName := ""
-				inject, diag := c.Body.Content(injectSchema)
-				if diag.HasErrors() {
-					return nil, errors.New(diag.Error())
-				}
-				// inject attributes
-				for _, attr := range inject.Attributes {
-					attrName := attr.Name
-					attrValue, diag := attr.Expr.Value(evalCtx)
-					if diag.HasErrors() {
-						return nil, errors.New(diag.Error())
-					}
-					switch attrName {
-					case "field":
-						fieldName = StringFromCty(attrValue)
-					case "target":
-						target = StringFromCty(attrValue)
-					}
-				}
+				target := c.Labels[0]
+				fieldName := c.Labels[1]
+				// inject, diag := c.Body.Content(injectSchema)
+				// if diag.HasErrors() {
+				// 	return nil, errors.New(diag.Error())
+				// }
+				// // inject attributes
+				// for _, attr := range inject.Attributes {
+				// 	attrName := attr.Name
+				// 	attrValue, diag := attr.Expr.Value(evalCtx)
+				// 	if diag.HasErrors() {
+				// 		return nil, errors.New(diag.Error())
+				// 	}
+				// 	switch attrName {
+				// 	case "field":
+				// 		fieldName = StringFromCty(attrValue)
+				// 	case "target":
+				// 		target = StringFromCty(attrValue)
+				// 	}
+				// }
 				if target == "" {
 					return nil, fmt.Errorf("module %s inject target not defined", moduleDef.Id)
 				}
