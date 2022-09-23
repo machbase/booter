@@ -34,7 +34,7 @@ booter 프로세스 내에서 호출할 boot.Boot를 구현한 모듈들을 정�
 
 `module` 블럭에는 다음과 같은 값들을 설정할 수 있다.
 
-- `name` 이름을 지정한다. 다른 module에서 `referece`로 depency injection을 수행할 때 이 이름으로 참조한다.
+- `name` 이름을 지정한다. 다른 module에서 `inject`로 depency injection을 수행할 때 이 이름으로 대상 모듈을 지정한다.
 
 - `priority` 모듈을 시작하는 순서를 정수 값으로 지정한다. 작은 값일 수록 먼저 Start()된다.
 
