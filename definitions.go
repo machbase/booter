@@ -72,7 +72,6 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		Variables: make(map[string]cty.Value),
 	}
 
-	// variables := make(map[string]cty.Value)
 	for _, d := range defines {
 		id := d.Labels[0]
 		sb := d.Body.(*hclsyntax.Body)
@@ -83,7 +82,6 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 				return nil, errors.New(diag.Error())
 			}
 			evalCtx.Variables[name] = value
-			// variables[name] = value
 		}
 	}
 
