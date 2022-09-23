@@ -40,11 +40,13 @@ booter 프로세스 내에서 호출할 boot.Boot를 구현한 모듈들을 정�
 
 - `diabled` 해당 모듈이 정의는 되어 있으나 인스턴스를 생성하거나 시작하지 않도록 disable한다.
 
-- `inject <target> <field>` 해당 모듈을 대상(target) 모듈의 필드 (field)에 주입한다.
+- `inject <target> <field|method> { }` 해당 모듈을 대상(target) 모듈의 필드 (field)에 주입한다.
   주입되는 시점은 모든 모듈들의 인스턴스가 생성되고 Start()가 호출되기 이전이다.
   따라서 대상 모듈에서 Start()를 구현할 때 현재 Module의 인스턴스는 반드시 생성되어 있는 상태이지만 Start()가 된 상태인지는 순서에 대한 고려가 필요하다.
 
-- `config` 해당 모듈의 config 객체를 정의한다.
+  `<field|method>`에는 대상 모듈의 field 또는 하나의 파라미터를 받는 setter 메서드를 지정할 수 있다.
+
+- `config { }` 해당 모듈의 config 객체를 정의한다.
 
 module 정의 내에서는 위에서 `define`으로 정의한 변수와 미리 정의된 함수를 사용하여 구문을 작성할 수 있다.
 

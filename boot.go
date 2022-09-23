@@ -208,12 +208,26 @@ func (this *boot) Startup() error {
 				return fmt.Errorf("%s inject into %s, not found", wrap.id, inj.Target)
 			}
 			mod := reflect.ValueOf(targetMod)
-			field := reflect.Indirect(mod).FieldByName(inj.FieldName)
-			if !field.IsValid() {
-				return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
+			var modPtr reflect.Value
+			if mod.Kind() == reflect.Pointer {
+				modPtr = mod
+				mod = reflect.Indirect(mod)
 			}
-			bootlog.Println(wrap.definition.Name, "inject", inj.FieldName)
-			field.Set(reflect.ValueOf(wrap.real))
+			field := mod.FieldByName(inj.FieldName)
+			if field.IsValid() {
+				bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by field", inj.FieldName)
+				field.Set(reflect.ValueOf(wrap.real))
+			} else {
+				if modPtr.IsValid() {
+					setter := modPtr.MethodByName(inj.FieldName)
+					if setter.IsValid() {
+						bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by method", inj.FieldName)
+						setter.Call([]reflect.Value{reflect.ValueOf(wrap.real)})
+					}
+				} else {
+					return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
+				}
+			}
 		}
 	}
 	bootlog.Println(len(this.wrappers), "modules enabled")
