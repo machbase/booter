@@ -227,6 +227,8 @@ func (wrap *wrapper) inject(inj *InjectionDef, wrappers []wrapper) error {
 			if setter.IsValid() {
 				bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by method", inj.FieldName)
 				setter.Call([]reflect.Value{reflect.ValueOf(wrap.real)})
+			} else {
+				return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
 			}
 		} else {
 			return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
