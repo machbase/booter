@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pkg/errors"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 type Definition struct {
@@ -27,23 +28,34 @@ type InjectionDef struct {
 	FieldName string
 }
 
-func LoadDefinitionFiles(files []string) ([]*Definition, error) {
+func LoadDefinitionFiles(files []string, evalCtx *hcl.EvalContext) ([]*Definition, error) {
 	body, err := LoadFile(files...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDefinitions(body)
+	return ParseDefinitions(body, evalCtx)
 }
 
-func LoadDefinitions(content []byte) ([]*Definition, error) {
+func LoadDefinitions(content []byte, evalCtx *hcl.EvalContext) ([]*Definition, error) {
 	body, err := Load(content)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDefinitions(body)
+	return ParseDefinitions(body, evalCtx)
 }
 
-func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
+func ParseDefinitions(body hcl.Body, evalCtx *hcl.EvalContext) ([]*Definition, error) {
+	if evalCtx == nil {
+		evalCtx = &hcl.EvalContext{
+			Functions: DefaultFunctions,
+			Variables: make(map[string]cty.Value),
+		}
+	} else if evalCtx.Functions == nil {
+		evalCtx.Functions = make(map[string]function.Function)
+	} else if evalCtx.Variables == nil {
+		evalCtx.Variables = make(map[string]cty.Value)
+	}
+
 	moduleSchema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{},
 		Blocks: []hcl.BlockHeaderSchema{
@@ -65,11 +77,6 @@ func ParseDefinitions(body hcl.Body) ([]*Definition, error) {
 		} else if block.Type == "module" {
 			modules = append(modules, block)
 		}
-	}
-
-	evalCtx := &hcl.EvalContext{
-		Functions: predefFunctions,
-		Variables: make(map[string]cty.Value),
 	}
 
 	for _, d := range defines {

@@ -4,100 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
-	"github.com/zclconf/go-cty/cty/function"
 )
-
-type Builder interface {
-	Build(content []byte) (Booter, error)
-	BuildWithFiles(files []string) (Booter, error)
-	BuildWithDir(configDir string) (Booter, error)
-
-	AddStartupHook(hooks ...func())
-	AddShutdownHook(hooks ...func())
-	SetFunction(name string, f function.Function)
-}
-
-type builder struct {
-	startupHooks  []func()
-	shutdownHooks []func()
-}
-
-func NewBuilder() Builder {
-	b := &builder{}
-	return b
-}
-
-func (this *builder) Build(content []byte) (Booter, error) {
-	definitions, err := LoadDefinitions(content)
-	if err != nil {
-		return nil, err
-	}
-	b, err := NewWithDefinitions(definitions)
-	if err != nil {
-		return nil, err
-	}
-	rt := b.(*boot)
-	rt.startupHooks = this.startupHooks
-	rt.shutdownHooks = this.shutdownHooks
-	return rt, nil
-}
-
-func (this *builder) BuildWithFiles(files []string) (Booter, error) {
-	definitions, err := LoadDefinitionFiles(files)
-	if err != nil {
-		return nil, err
-	}
-	b, err := NewWithDefinitions(definitions)
-	if err != nil {
-		return nil, err
-	}
-	rt := b.(*boot)
-	rt.startupHooks = this.startupHooks
-	rt.shutdownHooks = this.shutdownHooks
-	return rt, nil
-}
-
-func (this *builder) BuildWithDir(configDir string) (Booter, error) {
-	entries, err := os.ReadDir(configDir)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid config directory")
-	}
-
-	files := make([]string, 0)
-	for _, file := range entries {
-		if !strings.HasSuffix(file.Name(), ".hcl") {
-			continue
-		}
-		files = append(files, file.Name())
-	}
-	sort.Slice(files, func(i, j int) bool {
-		return files[i] < files[j]
-	})
-	result := make([]string, 0)
-	for _, file := range files {
-		result = append(result, filepath.Join(configDir, file))
-	}
-	return this.BuildWithFiles(result)
-}
-
-func (this *builder) AddStartupHook(hooks ...func()) {
-	this.startupHooks = append(this.startupHooks, hooks...)
-}
-
-func (this *builder) AddShutdownHook(hooks ...func()) {
-	this.shutdownHooks = append(this.shutdownHooks, hooks...)
-}
-
-func (this *builder) SetFunction(name string, f function.Function) {
-	SetFunction(name, f)
-}
 
 type Booter interface {
 	Startup() error
@@ -122,24 +34,6 @@ type boot struct {
 	startupHooks  []func()
 	shutdownHooks []func()
 }
-
-type wrapper struct {
-	id         string
-	definition *Definition
-	real       Boot
-	conf       any
-	state      State
-}
-
-type State int
-
-const (
-	None State = iota
-	Starting
-	Run
-	Stopping
-	Stop
-)
 
 func NewWithDefinitions(definitions []*Definition) (Booter, error) {
 	b := &boot{
@@ -193,55 +87,21 @@ func (this *boot) Startup() error {
 
 	// dependency injection
 	for _, wrap := range this.wrappers {
-		if len(wrap.definition.Injects) == 0 {
-			continue
-		}
 		for _, inj := range wrap.definition.Injects {
-			var targetMod Boot
-			for _, w := range this.wrappers {
-				if w.definition.Name == inj.Target || w.id == inj.Target {
-					targetMod = w.real
-					break
-				}
-			}
-			if targetMod == nil {
-				return fmt.Errorf("%s inject into %s, not found", wrap.id, inj.Target)
-			}
-			mod := reflect.ValueOf(targetMod)
-			var modPtr reflect.Value
-			if mod.Kind() == reflect.Pointer {
-				modPtr = mod
-				mod = reflect.Indirect(mod)
-			}
-			field := mod.FieldByName(inj.FieldName)
-			if field.IsValid() {
-				bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by field", inj.FieldName)
-				field.Set(reflect.ValueOf(wrap.real))
-			} else {
-				if modPtr.IsValid() {
-					setter := modPtr.MethodByName(inj.FieldName)
-					if setter.IsValid() {
-						bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by method", inj.FieldName)
-						setter.Call([]reflect.Value{reflect.ValueOf(wrap.real)})
-					}
-				} else {
-					return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
-				}
+			if err := wrap.inject(&inj, this.wrappers); err != nil {
+				return err
 			}
 		}
 	}
 	bootlog.Println(len(this.wrappers), "modules enabled")
 
-	// pre-start
+	// startup-hook & Start()
 	for _, wrap := range this.wrappers {
 		wrap.state = Starting
 	}
-
 	for _, hook := range this.startupHooks {
 		hook()
 	}
-
-	// start & post-start
 	for _, wrap := range this.wrappers {
 		wrap.state = Starting
 		bootlog.Println("start", wrap.id, wrap.definition.Name)
@@ -255,6 +115,7 @@ func (this *boot) Startup() error {
 }
 
 func (this *boot) Shutdown() {
+	// shutdown-hook & Stop()
 	for _, wrap := range this.wrappers {
 		wrap.state = Stopping
 	}
@@ -316,6 +177,59 @@ func (this *boot) GetConfig(id string) any {
 	for _, mod := range this.wrappers {
 		if mod.id == id {
 			return mod.conf
+		}
+	}
+	return nil
+}
+
+type wrapper struct {
+	id         string
+	definition *Definition
+	real       Boot
+	conf       any
+	state      State
+}
+
+type State int
+
+const (
+	None State = iota
+	Starting
+	Run
+	Stopping
+	Stop
+)
+
+func (wrap *wrapper) inject(inj *InjectionDef, wrappers []wrapper) error {
+	var targetMod Boot
+	for _, w := range wrappers {
+		if w.definition.Name == inj.Target || w.id == inj.Target {
+			targetMod = w.real
+			break
+		}
+	}
+	if targetMod == nil {
+		return fmt.Errorf("%s inject into %s, not found", wrap.id, inj.Target)
+	}
+	mod := reflect.ValueOf(targetMod)
+	var modPtr reflect.Value
+	if mod.Kind() == reflect.Pointer {
+		modPtr = mod
+		mod = reflect.Indirect(mod)
+	}
+	field := mod.FieldByName(inj.FieldName)
+	if field.IsValid() {
+		bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by field", inj.FieldName)
+		field.Set(reflect.ValueOf(wrap.real))
+	} else {
+		if modPtr.IsValid() {
+			setter := modPtr.MethodByName(inj.FieldName)
+			if setter.IsValid() {
+				bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by method", inj.FieldName)
+				setter.Call([]reflect.Value{reflect.ValueOf(wrap.real)})
+			}
+		} else {
+			return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
 		}
 	}
 	return nil

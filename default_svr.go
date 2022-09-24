@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 type Config struct {
@@ -131,6 +133,14 @@ func AddShutdownHook(hooks ...func()) {
 	} else {
 		defaultBooter.AddShutdownHook(hooks...)
 	}
+}
+
+func SetFunction(name string, f function.Function) {
+	defaultBuilder.SetFunction(name, f)
+}
+
+func SetVariable(name string, value any) error {
+	return defaultBuilder.SetVariable(name, value)
 }
 
 func GetDefinition(id string) *Definition {

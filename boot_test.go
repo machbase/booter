@@ -17,6 +17,8 @@ import (
 var AmodId = "github.com/booter/amod"
 var BmodId = "github.com/booter/bmod"
 
+var customFunc function.Function
+
 func TestMain(m *testing.M) {
 	os.Args = []string{
 		"--logging-default-level", "WARN",
@@ -44,8 +46,7 @@ func TestMain(m *testing.M) {
 			}
 			return instance, nil
 		})
-
-	var GetVersionFunc = function.New(&function.Spec{
+	customFunc = function.New(&function.Spec{
 		Params: []function.Parameter{},
 		Type:   function.StaticReturnType(cty.String),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
@@ -53,23 +54,30 @@ func TestMain(m *testing.M) {
 		},
 	})
 
-	booter.SetFunction("customfunc", GetVersionFunc)
 	m.Run()
 }
 
 func TestParser(t *testing.T) {
-	defs, err := booter.LoadDefinitionFiles([]string{
-		"./test/999_mod_others.hcl",
-		"./test/000_mod_env.hcl",
-		"./test/002_mod_bmod.hcl",
-		"./test/001_mod_amod.hcl",
-	})
+	booter.DefaultFunctions["customfunc"] = customFunc
+	defs, err := booter.LoadDefinitionFiles(
+		[]string{
+			"./test/999_mod_others.hcl",
+			"./test/000_mod_env.hcl",
+			"./test/002_mod_bmod.hcl",
+			"./test/001_mod_amod.hcl",
+		},
+		nil,
+	)
+	delete(booter.DefaultFunctions, "customfunc")
+
 	require.Nil(t, err)
 	require.Equal(t, 3, len(defs))
 }
 
 func TestParserDir(t *testing.T) {
 	builder := booter.NewBuilder()
+	builder.SetFunction("customfunc", customFunc)
+
 	bt, err := builder.BuildWithDir("./test")
 	require.Nil(t, err)
 	require.NotNil(t, bt)
@@ -77,6 +85,8 @@ func TestParserDir(t *testing.T) {
 
 func TestBoot(t *testing.T) {
 	builder := booter.NewBuilder()
+	builder.SetFunction("customfunc", customFunc)
+
 	b, err := builder.BuildWithDir("./test")
 	require.Nil(t, err)
 

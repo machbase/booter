@@ -5,6 +5,8 @@ define GLOBAL {
     SERVER_CERT  = "./test/test_server_cert.pem"
     SERVER_KEY   = "./test/test_server_key.pem"
 
+    VERSION      = customfunc()
+    
     LOGDIR           = "./tmp"
     LOG_LEVEL        = "ERROR"
     LOG_PREFIX_WIDTH = 51
