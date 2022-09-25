@@ -1,6 +1,6 @@
 define GLOBAL {
     IP_BIND      = "127.0.0.1"
-    IP_ADVERTISE = "127.0.0.1"
+    IP_ADVERTISE = "10.10.10.1"
 
     SERVER_CERT  = "./test/test_server_cert.pem"
     SERVER_KEY   = "./test/test_server_key.pem"

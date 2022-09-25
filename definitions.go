@@ -2,6 +2,7 @@ package booter
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"sort"
@@ -263,8 +264,15 @@ func EvalReflectValue(refName string, ref reflect.Value, value cty.Value) error 
 					return err
 				}
 			}
+		} else if ref.Type() == reflect.TypeOf(url.URL{}) && value.Type() == cty.String {
+			// string config를 url.URL struct로 변환
+			v, err := url.Parse(value.AsString())
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s should be url", refName))
+			}
+			ref.Set(reflect.ValueOf(*v))
 		} else {
-			return fmt.Errorf("%s should be object", refName)
+			return fmt.Errorf("%s should be object as %s", refName, ref.Type().Name())
 		}
 	case reflect.String:
 		if value.Type() == cty.String {

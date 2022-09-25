@@ -2,6 +2,7 @@ package booter_test
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -98,6 +99,8 @@ func TestBoot(t *testing.T) {
 	require.Equal(t, 201, def.Priority)
 	require.Equal(t, false, def.Disabled)
 	aconf := b.GetConfig(AmodId).(*AmodConf)
+	require.Equal(t, "127.0.0.1:1884", aconf.TcpConfig.ListenAddress)
+	require.Equal(t, "mqtts://10.10.10.1:1884", aconf.TcpConfig.AdvertiseAddress.String())
 	require.Equal(t, true, aconf.TcpConfig.Tls.LoadPrivateCAs)
 	require.Equal(t, "./test/test_server_cert.pem", aconf.TcpConfig.Tls.CertFile)
 	require.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
@@ -132,7 +135,7 @@ type AmodConf struct {
 
 type TcpConfig struct {
 	ListenAddress    string
-	AdvertiseAddress string
+	AdvertiseAddress url.URL
 	SoLinger         int
 	KeepAlive        int
 	NoDelay          bool

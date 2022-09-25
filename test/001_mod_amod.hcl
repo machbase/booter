@@ -6,7 +6,7 @@ module "github.com/booter/amod" {
         Version = GLOBAL_VERSION
         TcpConfig {
             ListenAddress    = "${GLOBAL_IP_BIND}:1884"
-            AdvertiseAddress = "${GLOBAL_IP_ADVERTISE}:1884"
+            AdvertiseAddress = "mqtts://${GLOBAL_IP_ADVERTISE}:1884"
             SoLinger         = 0
             KeepAlive        = 10
             NoDelay          = true
