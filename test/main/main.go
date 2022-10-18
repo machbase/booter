@@ -63,6 +63,7 @@ func init() {
 type AmodConf struct {
 	Version   string
 	TcpConfig TcpConfig
+	Timeout   time.Duration
 }
 
 type TcpConfig struct {
@@ -92,6 +93,7 @@ func (this *Amod) Start() error {
 	fmt.Println("amod start")
 	fmt.Printf("    with Amod.Bmod             = %p\n", this.Bmod)
 	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", this.OtherNameForBmod)
+	fmt.Printf("    config timeout = %v\n", this.conf.Timeout)
 	if this.Bmod != this.OtherNameForBmod {
 		return errors.New("amod.Bmod and amod.OtherNameForBmod has different references")
 	}

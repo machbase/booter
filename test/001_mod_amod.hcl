@@ -4,6 +4,7 @@ module "github.com/booter/amod" {
     priority = GLOBAL_BASE_PRIORITY_APP + 1
     config {
         Version = GLOBAL_VERSION
+        Timeout = "100ms"
         TcpConfig {
             ListenAddress    = "${GLOBAL_IP_BIND}:1884"
             AdvertiseAddress = "mqtts://${GLOBAL_IP_ADVERTISE}:1884"

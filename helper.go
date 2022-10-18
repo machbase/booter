@@ -33,7 +33,10 @@ func Int64FromCty(value cty.Value) (int64, error) {
 		return l, nil
 	case cty.String:
 		s := value.AsString()
-		if strings.HasSuffix(s, "s") {
+		if strings.HasSuffix(s, "ms") {
+			l, err := strconv.ParseInt(s[0:len(s)-2], 10, 64)
+			return l * int64(time.Millisecond), err
+		} else if strings.HasSuffix(s, "s") {
 			l, err := strconv.ParseInt(s[0:len(s)-1], 10, 64)
 			return l * int64(time.Second), err
 		} else if strings.HasSuffix(s, "m") {
