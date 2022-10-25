@@ -156,14 +156,23 @@ func GetConfig(id string) any {
 }
 
 func Pname() string {
+	if conf == nil {
+		return ""
+	}
 	return conf.Pname
 }
 
 func VersionString() string {
+	if conf == nil {
+		return ""
+	}
 	return conf.versionString
 }
 
 func SetVersionString(str string) {
+	if conf == nil {
+		return
+	}
 	conf.versionString = str
 }
 
