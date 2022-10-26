@@ -27,7 +27,7 @@ define VARS {
 
 ### `module <moduleid>`
 
-booter 프로세스 내에서 호출할 boot.Boot를 구현한 모듈들을 정의한다.
+booter 프로세스 내에서 호출할 booter.Boot를 구현한 모듈들을 정의한다.
 
 초기화하고 Start() 가 호출되는 순서는 기본적으로 파일에 기록된 순서대로이며
 별도의 priority를 지정하면 해당 순서에 따라 Start()가 호출된다. Stop()은 역순으로 호출된다.
@@ -100,11 +100,11 @@ module "my_project/module_b" {
 - `id`는 해당 모듈의 식별자로 아무 문자열이나 상관없지만, 관례로 go module path를 사용한다.
 - `configFactory`는 `func() T` 함수로 해당 모듈의 config 객체의 pointer `T`를 반환하도록 한다.
 config 객체는 반환전에 default 값들을 채워서 config file에서 지정하지 않아도 디폴트값이 적용되도록 할 수 있다.
-- `instanceFactory`는 `func(T) (boot.Boot, error)` 함수로 `configFactory`에서 반환한 객체에서
+- `instanceFactory`는 `func(T) (booter.Boot, error)` 함수로 `configFactory`에서 반환한 객체에서
    설정파일의 `config` 블럭의 값들이 적용된 후 `instanceFactory`의 인자로 입력된다.
    이 값을 바탕으로 모듈의 인스턴스를 생성하여 반환하거나 오류를 반환하도록 한다.
-   `instnaceFactory`의 반환 타입에서 알 수 있듯이 인스턴스는 `boot.Boot` 인터페이스를 구현해야 한다.
-- `boot.Boot`는 `Start() error` `Stop()` 두 가지 함수를 가진 인터페이스이다.
+   `instnaceFactory`의 반환 타입에서 알 수 있듯이 인스턴스는 `booter.Boot` 인터페이스를 구현해야 한다.
+- `booter.Boot`는 `Start() error` `Stop()` 두 가지 함수를 가진 인터페이스이다.
 
 module example)
 
