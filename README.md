@@ -163,14 +163,14 @@ application이 `booter.Startup()`를 호출하여 booter를 시작하면
 - 순서대로 해당 모듈의 configFactory를 호출하여 디폴트 config 객체를 받아온 후
 - `config` 블럭에 지정된 필드들을 config 객체에 업데이트 한다.
 - 수정된 config 객체를 instanceFactory에 전달하여 해당 모듈의 인스턴들을 생성한다.
-- `reference` 블럭에 지정된 값을 기반으로 dependency injection을 수행한다.
+- `inject` 블럭에 지정된 값을 기반으로 dependency injection을 수행한다.
 - 각 모듈의 `Start()`를 순서대로 호출한다.
 
 booter가 설정에 따라 application의 모듈들을 성공적으로 시작하였다면
 `booter.WaitSignal()`을 호출하여 종료 시그널을 기다린다.
 프로그램 제어 흐름은 `booter.WaitSignal()`에서 blocking된다.
-이 상태에서 booter를 종료하려면 별도의 go routine에서 `booter.NotifySignal()`을 호출하면
-`booter.WaitSignal()`이 반환되고 `booter.Shutdown()`을 통해 프로그램을 정상 종료하도록 한다.
+이 상태에서 booter를 종료하려면 별도의 go routine에서 `booter.NotifySignal()`을 호출하거나 `^C` 시그널을 입력하면
+`booter.WaitSignal()`이 반환되고 `booter.Shutdown()`을 통해 프로그램을 정상 종료된다.
 
 #### csutomize command line arguments
 
@@ -186,11 +186,15 @@ booter가 설정에 따라 application의 모듈들을 성공적으로 시작하
 
 > 그 외의 응용프로그램에서 필요한 추가 플래그는 위의 functions에서 설명한 것처럼 설정파일 내에서 `flag()`로 지정하면 된다.
 
-만약 이 파리미터를 변경해야할 필요가 있다면 `booter.Startup()`전에 `booter.SetFlag()`를 호출하여 변경할 수 있다.
+만약 이 플래그를 다른 이름으로 변경하려면 `booter.Startup()`전에 `booter.SetFlag()`를 호출하여 변경할 수 있다.
 
 ```go
 func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string)
+```
 
+BootFlagType은 다음과 같다.
+
+```go
 const (
 	ConfigDirFlag
 	ConfigFileFlag
