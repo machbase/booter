@@ -226,6 +226,9 @@ func (wrap *wrapper) inject(inj *InjectionDef, wrappers []wrapper) error {
 			setter := modPtr.MethodByName(inj.FieldName)
 			if setter.IsValid() {
 				bootlog.Println(wrap.definition.Name, "inject into", inj.Target, "by method", inj.FieldName)
+				if wrap.real == nil {
+					return fmt.Errorf("%s is not instantiated", wrap.definition.Name)
+				}
 				setter.Call([]reflect.Value{reflect.ValueOf(wrap.real)})
 			} else {
 				return fmt.Errorf("%s %s is not accessible", inj.Target, inj.FieldName)
