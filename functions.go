@@ -3,6 +3,7 @@ package booter
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/zclconf/go-cty/cty"
@@ -21,6 +22,8 @@ var DefaultFunctions = map[string]function.Function{
 	"arglen":      GetArgLenFunc,
 	"pname":       GetPnameFunc,
 	"version":     GetVersionFunc,
+	"execFile":    GetExecutableFileFunc,
+	"execDir":     GetExecutableDirFunc,
 	"upper":       stdlib.UpperFunc,
 	"lower":       stdlib.LowerFunc,
 	"min":         stdlib.MinFunc,
@@ -42,6 +45,39 @@ var GetVersionFunc = function.New(&function.Spec{
 	Type:   function.StaticReturnType(cty.String),
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		return cty.StringVal(VersionString()), nil
+	},
+})
+
+var GetExecutableFileFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		exePath, err := os.Executable()
+		if err != nil {
+			return cty.NilVal, err
+		}
+		filePath, err := filepath.Abs(exePath)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(filePath), nil
+	},
+})
+
+var GetExecutableDirFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		exePath, err := os.Executable()
+		if err != nil {
+			return cty.NilVal, err
+		}
+		exeDirPath := filepath.Dir(exePath)
+		dirPath, err := filepath.Abs(exeDirPath)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(dirPath), nil
 	},
 })
 
