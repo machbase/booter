@@ -51,6 +51,7 @@ var defaultBooter Booter
 var defaultBuilder = NewBuilder()
 var conf *Config
 var fallbackConfigContent []byte
+var fallbackPname string
 var bootlog *log.Logger
 
 func init() {
@@ -179,6 +180,10 @@ func SetVersionString(str string) {
 
 func SetFallbackConfig(content []byte) {
 	fallbackConfigContent = content
+}
+
+func SetFallbackPname(pname string) {
+	fallbackPname = pname
 }
 
 func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string) {
@@ -331,6 +336,10 @@ func parseflags() {
 		os.Exit(1)
 	}
 	if len(conf.Pname) == 0 {
-		conf.Pname = fmt.Sprintf("boot-%d", os.Getpid())
+		if len(fallbackPname) > 0 {
+			conf.Pname = fallbackPname
+		} else {
+			conf.Pname = fmt.Sprintf("boot-%d", os.Getpid())
+		}
 	}
 }
