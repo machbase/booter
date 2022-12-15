@@ -156,18 +156,18 @@ type Amod struct {
 	OtherNameForBmod BmodInterface
 }
 
-func (this *Amod) Start() error {
+func (am *Amod) Start() error {
 	fmt.Println("amod start")
-	fmt.Printf("    with Amod.Bmod             = %p\n", this.Bmod)
-	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", this.OtherNameForBmod)
-	if this.Bmod != this.OtherNameForBmod {
+	fmt.Printf("    with Amod.Bmod             = %p\n", am.Bmod)
+	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", am.OtherNameForBmod)
+	if am.Bmod != am.OtherNameForBmod {
 		return errors.New("amod.Bmod and amod.OtherNameForBmod has different references")
 	}
-	this.OtherNameForBmod.DoWork()
+	am.OtherNameForBmod.DoWork()
 	return nil
 }
 
-func (this *Amod) Stop() {
+func (am *Amod) Stop() {
 	fmt.Println("amod stop")
 }
 
@@ -195,15 +195,15 @@ type Bmod struct {
 	conf BmodConf
 }
 
-func (this *Bmod) Start() error {
+func (bm *Bmod) Start() error {
 	fmt.Println("bmod start")
 	return nil
 }
 
-func (this *Bmod) Stop() {
+func (bm *Bmod) Stop() {
 	fmt.Println("bmod stop")
 }
 
-func (this *Bmod) DoWork() {
+func (bm *Bmod) DoWork() {
 	fmt.Println("bmod work...")
 }

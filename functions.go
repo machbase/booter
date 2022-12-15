@@ -105,8 +105,7 @@ var GetArgFunc = function.New(&function.Spec{
 	Type: function.StaticReturnType(cty.String),
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		var i int
-		var err error
-		err = gocty.FromCtyValue(args[0], &i)
+		err := gocty.FromCtyValue(args[0], &i)
 		if err != nil {
 			return cty.NilVal, err
 		}
@@ -135,8 +134,7 @@ var GetArg2Func = function.New(&function.Spec{
 	Type: function.StaticReturnType(cty.String),
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		var i int
-		var err error
-		err = gocty.FromCtyValue(args[0], &i)
+		err := gocty.FromCtyValue(args[0], &i)
 		if err != nil {
 			return cty.NilVal, err
 		}

@@ -42,9 +42,9 @@ func NewWithDefinitions(definitions []*Definition) (Booter, error) {
 	return b, nil
 }
 
-func (this *boot) Startup() error {
-	bootlog.Println(len(this.moduleDefs), "modules defined")
-	for _, def := range this.moduleDefs {
+func (bt *boot) Startup() error {
+	bootlog.Println(len(bt.moduleDefs), "modules defined")
+	for _, def := range bt.moduleDefs {
 		state := "enabled"
 		if def.Disabled {
 			state = "disabled"
@@ -62,9 +62,7 @@ func (this *boot) Startup() error {
 		// create config
 		config := fact.NewConfig()
 		objName := fmt.Sprintf("%T", config)
-		if strings.HasPrefix(objName, "*") {
-			objName = objName[1:]
-		}
+		objName = strings.TrimPrefix(objName, "*")
 		// evalute config values
 		err := EvalObject(objName, config, def.Config)
 		if err != nil {
@@ -82,27 +80,27 @@ func (this *boot) Startup() error {
 			conf:       config,
 			state:      None,
 		}
-		this.wrappers = append(this.wrappers, wrap)
+		bt.wrappers = append(bt.wrappers, wrap)
 	}
 
 	// dependency injection
-	for _, wrap := range this.wrappers {
+	for _, wrap := range bt.wrappers {
 		for _, inj := range wrap.definition.Injects {
-			if err := wrap.inject(&inj, this.wrappers); err != nil {
+			if err := wrap.inject(&inj, bt.wrappers); err != nil {
 				return err
 			}
 		}
 	}
-	bootlog.Println(len(this.wrappers), "modules enabled")
+	bootlog.Println(len(bt.wrappers), "modules enabled")
 
 	// startup-hook & Start()
-	for _, wrap := range this.wrappers {
+	for _, wrap := range bt.wrappers {
 		wrap.state = Starting
 	}
-	for _, hook := range this.startupHooks {
+	for _, hook := range bt.startupHooks {
 		hook()
 	}
-	for _, wrap := range this.wrappers {
+	for _, wrap := range bt.wrappers {
 		wrap.state = Starting
 		bootlog.Println("start", wrap.id, wrap.definition.Name)
 		err := wrap.real.Start()
@@ -114,16 +112,16 @@ func (this *boot) Startup() error {
 	return nil
 }
 
-func (this *boot) Shutdown() {
+func (bt *boot) Shutdown() {
 	// shutdown-hook & Stop()
-	for _, wrap := range this.wrappers {
+	for _, wrap := range bt.wrappers {
 		wrap.state = Stopping
 	}
-	for _, hook := range this.shutdownHooks {
+	for _, hook := range bt.shutdownHooks {
 		hook()
 	}
-	for i := len(this.wrappers) - 1; i >= 0; i-- {
-		wrap := this.wrappers[i]
+	for i := len(bt.wrappers) - 1; i >= 0; i-- {
+		wrap := bt.wrappers[i]
 		bootlog.Println("stop", wrap.id, wrap.definition.Name)
 		instance := wrap.real
 		instance.Stop()
@@ -131,32 +129,32 @@ func (this *boot) Shutdown() {
 	}
 }
 
-func (this *boot) ShutdownAndExit(exitCode int) {
-	this.Shutdown()
+func (bt *boot) ShutdownAndExit(exitCode int) {
+	bt.Shutdown()
 	os.Exit(exitCode)
 }
 
-func (this *boot) WaitSignal() {
+func (bt *boot) WaitSignal() {
 	// signal handler
-	this.quitChan = make(chan os.Signal)
-	signal.Notify(this.quitChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	bt.quitChan = make(chan os.Signal)
+	signal.Notify(bt.quitChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	// wait signal
-	<-this.quitChan
+	<-bt.quitChan
 }
 
-func (this *boot) NotifySignal() {
-	if this.quitChan != nil {
-		this.quitChan <- syscall.SIGINT
+func (bt *boot) NotifySignal() {
+	if bt.quitChan != nil {
+		bt.quitChan <- syscall.SIGINT
 	}
 }
 
-func (this *boot) AddShutdownHook(f ...func()) {
-	this.shutdownHooks = append(this.shutdownHooks, f...)
+func (bt *boot) AddShutdownHook(f ...func()) {
+	bt.shutdownHooks = append(bt.shutdownHooks, f...)
 }
 
-func (this *boot) GetDefinition(id string) *Definition {
-	for _, def := range this.moduleDefs {
+func (bt *boot) GetDefinition(id string) *Definition {
+	for _, def := range bt.moduleDefs {
 		if def.Id == id {
 			return def
 		}
@@ -164,8 +162,8 @@ func (this *boot) GetDefinition(id string) *Definition {
 	return nil
 }
 
-func (this *boot) GetInstance(id string) Boot {
-	for _, mod := range this.wrappers {
+func (bt *boot) GetInstance(id string) Boot {
+	for _, mod := range bt.wrappers {
 		if mod.id == id {
 			return mod.real
 		}
@@ -173,8 +171,8 @@ func (this *boot) GetInstance(id string) Boot {
 	return nil
 }
 
-func (this *boot) GetConfig(id string) any {
-	for _, mod := range this.wrappers {
+func (bt *boot) GetConfig(id string) any {
+	for _, mod := range bt.wrappers {
 		if mod.id == id {
 			return mod.conf
 		}

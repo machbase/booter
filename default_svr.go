@@ -50,6 +50,7 @@ const (
 var defaultBooter Booter
 var defaultBuilder = NewBuilder()
 var conf *Config
+var fallbackConfigContent []byte
 var bootlog *log.Logger
 
 func init() {
@@ -176,6 +177,10 @@ func SetVersionString(str string) {
 	conf.versionString = str
 }
 
+func SetFallbackConfig(content []byte) {
+	fallbackConfigContent = content
+}
+
 func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string) {
 	if flag, ok := conf.flags[flagType]; ok {
 		flag.Long = longflag
@@ -193,6 +198,8 @@ func serve(conf *Config) {
 		defaultBooter, err = defaultBuilder.BuildWithFiles([]string{conf.ConfFile})
 	} else if len(conf.ConfDir) > 0 {
 		defaultBooter, err = defaultBuilder.BuildWithDir(conf.ConfDir)
+	} else if len(fallbackConfigContent) > 0 {
+		defaultBooter, err = defaultBuilder.BuildWithContent(fallbackConfigContent)
 	} else {
 		panic(fmt.Errorf("one of --%s --%s should be provided",
 			conf.flags[ConfigDirFlag].Long, conf.flags[ConfigFileFlag].Long))
@@ -317,7 +324,7 @@ func parseflags() {
 		}
 	}
 
-	if len(conf.ConfDir) == 0 && len(conf.ConfFile) == 0 {
+	if len(conf.ConfDir) == 0 && len(conf.ConfFile) == 0 && len(fallbackConfigContent) == 0 {
 		fmt.Printf("\n  Error: at least one of --%s, --%s is required\n\n",
 			conf.flags[ConfigDirFlag].Long, conf.flags[ConfigFileFlag].Long)
 		flag.Usage()

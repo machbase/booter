@@ -44,34 +44,34 @@ func NewBuilder() Builder {
 	return b
 }
 
-func (this *builder) Build(definitions []*Definition) (Booter, error) {
+func (bld *builder) Build(definitions []*Definition) (Booter, error) {
 	b, err := NewWithDefinitions(definitions)
 	if err != nil {
 		return nil, err
 	}
 	rt := b.(*boot)
-	rt.startupHooks = this.startupHooks
-	rt.shutdownHooks = this.shutdownHooks
+	rt.startupHooks = bld.startupHooks
+	rt.shutdownHooks = bld.shutdownHooks
 	return rt, nil
 }
 
-func (this *builder) BuildWithContent(content []byte) (Booter, error) {
-	definitions, err := LoadDefinitions(content, this.makeContext())
+func (bld *builder) BuildWithContent(content []byte) (Booter, error) {
+	definitions, err := LoadDefinitions(content, bld.makeContext())
 	if err != nil {
 		return nil, err
 	}
-	return this.Build(definitions)
+	return bld.Build(definitions)
 }
 
-func (this *builder) BuildWithFiles(files []string) (Booter, error) {
-	definitions, err := LoadDefinitionFiles(files, this.makeContext())
+func (bld *builder) BuildWithFiles(files []string) (Booter, error) {
+	definitions, err := LoadDefinitionFiles(files, bld.makeContext())
 	if err != nil {
 		return nil, err
 	}
-	return this.Build(definitions)
+	return bld.Build(definitions)
 }
 
-func (this *builder) BuildWithDir(configDir string) (Booter, error) {
+func (bld *builder) BuildWithDir(configDir string) (Booter, error) {
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid config directory")
@@ -91,21 +91,21 @@ func (this *builder) BuildWithDir(configDir string) (Booter, error) {
 	for _, file := range files {
 		result = append(result, filepath.Join(configDir, file))
 	}
-	return this.BuildWithFiles(result)
+	return bld.BuildWithFiles(result)
 }
 
-func (this *builder) AddStartupHook(hooks ...func()) {
-	this.startupHooks = append(this.startupHooks, hooks...)
+func (bld *builder) AddStartupHook(hooks ...func()) {
+	bld.startupHooks = append(bld.startupHooks, hooks...)
 }
 
-func (this *builder) AddShutdownHook(hooks ...func()) {
-	this.shutdownHooks = append(this.shutdownHooks, hooks...)
+func (bld *builder) AddShutdownHook(hooks ...func()) {
+	bld.shutdownHooks = append(bld.shutdownHooks, hooks...)
 }
 
-func (this *builder) makeContext() *hcl.EvalContext {
+func (bld *builder) makeContext() *hcl.EvalContext {
 	evalCtx := &hcl.EvalContext{
-		Functions: this.functions,
-		Variables: this.variables,
+		Functions: bld.functions,
+		Variables: bld.variables,
 	}
 	if evalCtx.Functions == nil {
 		evalCtx.Functions = make(map[string]function.Function)
@@ -113,11 +113,11 @@ func (this *builder) makeContext() *hcl.EvalContext {
 	return evalCtx
 }
 
-func (this *builder) SetFunction(name string, f function.Function) {
-	this.functions[name] = f
+func (bld *builder) SetFunction(name string, f function.Function) {
+	bld.functions[name] = f
 }
 
-func (this *builder) SetVariable(name string, value any) (err error) {
+func (bld *builder) SetVariable(name string, value any) (err error) {
 	if len(name) == 0 {
 		return errors.New("can not define with empty name")
 	}
@@ -134,7 +134,7 @@ func (this *builder) SetVariable(name string, value any) (err error) {
 	}
 
 	if err == nil {
-		this.variables[name] = v
+		bld.variables[name] = v
 	}
 	return
 }
