@@ -131,6 +131,7 @@ func TestBoot(t *testing.T) {
 type AmodConf struct {
 	Version   string
 	TcpConfig TcpConfig
+	Timeout   time.Duration
 }
 
 type TcpConfig struct {

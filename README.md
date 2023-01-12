@@ -1,4 +1,6 @@
 
+[![](https://github.com/machbase/booter/actions/workflows/ci.yml/badge.svg)](https://github.com/MACHBASE/booter/actions/workflows/ci.yml)
+
 ## config syntax
 
 ### `define <prefix>`
