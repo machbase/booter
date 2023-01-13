@@ -106,6 +106,8 @@ func TestBoot(t *testing.T) {
 	require.Equal(t, "./test/test_server_key.pem", aconf.TcpConfig.Tls.KeyFile)
 	require.Equal(t, 5*time.Second, aconf.TcpConfig.Tls.HandshakeTimeout)
 	require.Equal(t, "1.2.3", aconf.Version)
+	require.Equal(t, 2*time.Hour, aconf.Dur2h)
+	require.Equal(t, 24*time.Hour, aconf.Dur24h)
 	// check if injection works
 	amod := b.GetInstance(AmodId).(*Amod)
 	require.NotNil(t, amod)
@@ -132,6 +134,8 @@ type AmodConf struct {
 	Version   string
 	TcpConfig TcpConfig
 	Timeout   time.Duration
+	Dur2h     time.Duration
+	Dur24h    time.Duration
 }
 
 type TcpConfig struct {

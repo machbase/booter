@@ -2,7 +2,6 @@ package booter
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -122,6 +121,7 @@ func StringFromCty(value cty.Value) string {
 	return value.AsString()
 }
 
+/*
 // Converts a string to CamelCase
 var uppercaseAcronym = map[string]string{
 	"ID": "id",
@@ -186,3 +186,4 @@ func toSnakeCase(s string) string {
 func toFlagName(prefix, name string) string {
 	return prefix + "-" + toSnakeCase(name)
 }
+*/

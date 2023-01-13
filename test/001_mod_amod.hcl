@@ -5,6 +5,8 @@ module "github.com/booter/amod" {
     config {
         Version = GLOBAL_VERSION
         Timeout = "100ms"
+        Dur24h  = "24h"
+        Dur2h   = "2h"
         TcpConfig {
             ListenAddress    = "${GLOBAL_IP_BIND}:1884"
             AdvertiseAddress = "mqtts://${GLOBAL_IP_ADVERTISE}:1884"
