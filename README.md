@@ -1,17 +1,26 @@
 
 [![](https://github.com/machbase/booter/actions/workflows/ci.yml/badge.svg)](https://github.com/MACHBASE/booter/actions/workflows/ci.yml)
 
-## config syntax
+## install
 
-### `define <prefix>`
+```sh
+go get -u github.com/machbase/booter
+```
 
-개발환경/운영환경에 따라 수정이 필요한 사항들을
-별도로 정의해두면 운영관리가 편리해진다.
+## config file syntax
 
-아래와 같이 `define <prefix>` 형식으로 정의하며 prefix 부분은 임의의 문자열로 정의할 수 있고
-값을 참조할 때에는 `prefix_name` 처럼 `_`로 연결되어 사용된다.
+### `define <PREFIX>`
 
-예를 들어 아래와 같이 정의 하였다면 `VARS_IP_ADDR` 은 "127.0.0.1"을 참조하게 된다.
+`define` block defines variables to be applied in the other parts of config file.
+
+The syntax is `define <PREFIX>`, that comes with `<PREFIX>` which is identified for the block. 
+Any string of alpabet can be used for a prefix.
+
+When any value from other block needs to refer an item of defined block,
+it will be concatenates with the prefix and `_` like `PREFIX_{item name}`.
+
+As `VARS` block is defined as below example,
+actual value of `VARS_IP_ADDR` is "127.0.0.1".
 
 ```hcl
 define VARS {
@@ -20,12 +29,16 @@ define VARS {
     MAX_BACKUPS = 10
     LOG_DIR     = "./logs"
 }
+
+define LOG {
+    LOG_FILE    = "${VARS_LOG_DIR}/app.log"
+}
 ```
 
-- 정의의 이름은 관례상 대문자, 밑줄, 숫자로만 표현하도록 한다.
-- 정의의 값은 문자열, 숫자, 불린(true, false) 상수와 함수 및 앞서 정의한 변수를 사용할 수 있다.
-- define 블럭내에서 순서 상 뒤에 있는 다른 변수를 참조할 수 없다.
-- 복수의 define 블럭이 존재할 경우 순서대로 정의된다.
+- PREFIX: use upper-case alphabet, number and underscore for convention.
+- Value of item:  string, digit, boolean(`true`, `false`), functions and other variables that defined earlier.
+- Can not refer other variables defined afterward.
+- Multiple `define` blocks are processed in order.
 
 ### `module <moduleid>`
 
@@ -212,26 +225,4 @@ const (
 (shortflag를 사용하지 않으려면 "c" 대신 빈문자열 ""로 설정하면 된다.)
 ```go
 booter.SetFlag(ConfigFileFlag, "config-file", "c", "./conf/default.hcl")
-```
-
-## Developer
-
-### `.vscode/settings.json`
-
-```json
-{
-    "files.exclude": {
-        "vendor": true,
-        "tmp": false,
-        "bin": true,
-    },
-    "go.formatTool": "gofmt",
-    "go.formatFlags": [
-        "-s"
-    ],
-    "go.testFlags": [
-        "-v",
-        "-count", "1"
-    ]
-}
 ```
