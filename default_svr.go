@@ -145,6 +145,10 @@ func SetVariable(name string, value any) error {
 	return defaultBuilder.SetVariable(name, value)
 }
 
+func SetConfiFileSuffix(ext string) {
+	defaultBuilder.SetConfiFileSuffix(ext)
+}
+
 func GetDefinition(id string) *Definition {
 	return defaultBooter.GetDefinition(id)
 }

@@ -24,6 +24,7 @@ type Builder interface {
 	AddShutdownHook(hooks ...func())
 	SetFunction(name string, f function.Function)
 	SetVariable(name string, value any) error
+	SetConfiFileSuffix(ext string)
 }
 
 type builder struct {
@@ -31,12 +32,14 @@ type builder struct {
 	shutdownHooks []func()
 	functions     map[string]function.Function
 	variables     map[string]cty.Value
+	fileSuffix    string
 }
 
 func NewBuilder() Builder {
 	b := &builder{
-		functions: make(map[string]function.Function),
-		variables: make(map[string]cty.Value),
+		functions:  make(map[string]function.Function),
+		variables:  make(map[string]cty.Value),
+		fileSuffix: ".hcl",
 	}
 	for k, v := range DefaultFunctions {
 		b.functions[k] = v
@@ -79,7 +82,7 @@ func (bld *builder) BuildWithDir(configDir string) (Booter, error) {
 
 	files := make([]string, 0)
 	for _, file := range entries {
-		if !strings.HasSuffix(file.Name(), ".hcl") {
+		if !strings.HasSuffix(file.Name(), bld.fileSuffix) {
 			continue
 		}
 		files = append(files, file.Name())
@@ -137,4 +140,8 @@ func (bld *builder) SetVariable(name string, value any) (err error) {
 		bld.variables[name] = v
 	}
 	return
+}
+
+func (bld *builder) SetConfiFileSuffix(ext string) {
+	bld.fileSuffix = ext
 }
