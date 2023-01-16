@@ -75,14 +75,14 @@ func init() {
 func Startup() {
 	parseflags()
 
+	if conf.GenConfig && len(fallbackConfigContent) > 0 {
+		fmt.Println(string(fallbackConfigContent))
+		os.Exit(0)
+	}
+
 	if conf.Daemon {
 		// daemon mode일 때는 bootlog와 pidfile을 Damonize()내에서 처리한다.
 		Daemonize(conf.BootlogFile, conf.PidFile, func() { serve(conf) })
-		return
-	}
-
-	if conf.GenConfig && len(fallbackConfigContent) > 0 {
-		fmt.Println(string(fallbackConfigContent))
 		return
 	}
 
