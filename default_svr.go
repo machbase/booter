@@ -20,6 +20,7 @@ type Config struct {
 	Pname       string
 	ConfDir     string
 	ConfFile    string
+	GenConfig   bool
 
 	flags         map[BootFlagType]BootFlag
 	versionString string
@@ -39,6 +40,7 @@ const (
 	noneFlag BootFlagType = iota
 	ConfigDirFlag
 	ConfigFileFlag
+	GenConfigFlag
 	PnameFlag
 	PidFlag
 	BootlogFlag
@@ -60,6 +62,7 @@ func init() {
 		flags: map[BootFlagType]BootFlag{
 			ConfigDirFlag:  {Long: "config-dir", Placeholder: "<dir>", Help: "config directory path"},
 			ConfigFileFlag: {Long: "config", Short: "c", Placeholder: "<file>", Help: "a single file config"},
+			GenConfigFlag:  {Long: "gen-config", Help: "print default config"},
 			PnameFlag:      {Long: "pname", Placeholder: "<name>", Help: "assign process name"},
 			PidFlag:        {Long: "pid", Placeholder: "<path>", Help: "pid file path"},
 			BootlogFlag:    {Long: "bootlog", Placeholder: "<path>", Help: "boot log path"},
@@ -75,6 +78,11 @@ func Startup() {
 	if conf.Daemon {
 		// daemon mode일 때는 bootlog와 pidfile을 Damonize()내에서 처리한다.
 		Daemonize(conf.BootlogFile, conf.PidFile, func() { serve(conf) })
+		return
+	}
+
+	if conf.GenConfig && len(fallbackConfigContent) > 0 {
+		fmt.Println(string(fallbackConfigContent))
 		return
 	}
 
@@ -284,6 +292,8 @@ func parseflags() {
 			conf.PidFile = v.Default
 		case BootlogFlag:
 			conf.BootlogFile = v.Default
+		case GenConfigFlag:
+			conf.GenConfig = false
 		case DaemonFlag:
 			if len(v.Default) > 0 {
 				if b, err := strconv.ParseBool(v.Default); err != nil {
@@ -319,6 +329,8 @@ func parseflags() {
 			conf.ConfDir = argv
 		case ConfigFileFlag:
 			conf.ConfFile = argv
+		case GenConfigFlag:
+			conf.GenConfig = true
 		case PnameFlag:
 			conf.Pname = argv
 		case PidFlag:
