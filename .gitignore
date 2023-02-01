@@ -26,7 +26,6 @@ yarn-error.log*
 web/build
 tmp/
 packages/
-vendor/
 .air.toml
 
 *.log
