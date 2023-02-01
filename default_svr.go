@@ -121,14 +121,26 @@ func Shutdown() {
 }
 
 func ShutdownAndExit(exitCode int) {
+	if defaultBooter == nil {
+		// daemon mode에서 parent process의 경우.
+		return
+	}
 	defaultBooter.ShutdownAndExit(exitCode)
 }
 
 func WaitSignal() {
+	if defaultBooter == nil {
+		// daemon mode에서 parent process의 경우.
+		return
+	}
 	defaultBooter.WaitSignal()
 }
 
 func NotifySignal() {
+	if defaultBooter == nil {
+		// daemon mode에서 parent process의 경우.
+		return
+	}
 	defaultBooter.NotifySignal()
 }
 
