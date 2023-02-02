@@ -29,7 +29,7 @@ func Daemonize(bootlog string, pidfile string, proc func()) {
 	if child != nil {
 		// post-work in parent
 		if len(pidfile) > 0 {
-			pfile, err := os.OpenFile(conf.PidFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+			pfile, err := os.OpenFile(pidfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
