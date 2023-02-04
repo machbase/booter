@@ -94,6 +94,9 @@ module "my_project/module_b" {
 - `arg(i, default)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 default를 반환한다.
 - `argOrError(i)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 에러를 발생한다.
 - `arglen()` 명령행 인자 수를 반환
+- `userDir()` : Get user's home directory, On Linux and macOS, it returns the $HOME environment variable.
+- `userConfDir()` : Get user's config directory, On Linux, it returns $XDG_CONFIG_HOME as specified by https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if non-empty, else $HOME/.config. On macOS, it returns $HOME/Library/Application Support.
+- `prefDir(subdir)`: Get $HOME/.config/$subdir
 - `upper(str)`
 - `lower(str)`
 - `min(a, b)`

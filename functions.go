@@ -24,6 +24,9 @@ var DefaultFunctions = map[string]function.Function{
 	"version":     GetVersionFunc,
 	"execFile":    GetExecutableFileFunc,
 	"execDir":     GetExecutableDirFunc,
+	"userDir":     GetUserHomeDirFunc,
+	"userConfDir": GetUserConfigDirFunc,
+	"prefDir":     GetPrefDirFunc,
 	"upper":       stdlib.UpperFunc,
 	"lower":       stdlib.LowerFunc,
 	"min":         stdlib.MinFunc,
@@ -78,6 +81,61 @@ var GetExecutableDirFunc = function.New(&function.Spec{
 			return cty.NilVal, err
 		}
 		return cty.StringVal(dirPath), nil
+	},
+})
+
+var GetUserHomeDirFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return cty.NilVal, err
+		}
+		dirPath, err := filepath.Abs(homePath)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(dirPath), nil
+	},
+})
+
+var GetUserConfigDirFunc = function.New(&function.Spec{
+	Params: []function.Parameter{},
+	Type:   function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		confPath, err := os.UserConfigDir()
+		if err != nil {
+			return cty.NilVal, err
+		}
+		dirPath, err := filepath.Abs(confPath)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(dirPath), nil
+	},
+})
+
+var GetPrefDirFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "str",
+			Type:             cty.String,
+			AllowDynamicType: true,
+		},
+	},
+	Type: function.StaticReturnType(cty.String),
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		in := args[0].AsString()
+		homePath, err := os.UserHomeDir()
+		if err != nil {
+			return cty.NilVal, err
+		}
+		dirPath, err := filepath.Abs(homePath)
+		if err != nil {
+			return cty.NilVal, err
+		}
+		return cty.StringVal(filepath.Join(dirPath, ".config", in)), nil
 	},
 })
 
