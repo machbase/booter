@@ -170,15 +170,27 @@ func SetConfiFileSuffix(ext string) {
 }
 
 func GetDefinition(id string) *Definition {
-	return defaultBooter.GetDefinition(id)
+	if defaultBooter == nil {
+		return nil
+	} else {
+		return defaultBooter.GetDefinition(id)
+	}
 }
 
 func GetInstance(id string) Boot {
-	return defaultBooter.GetInstance(id)
+	if defaultBooter == nil {
+		return nil
+	} else {
+		return defaultBooter.GetInstance(id)
+	}
 }
 
 func GetConfig(id string) any {
-	return defaultBooter.GetInstance(id)
+	if defaultBooter == nil {
+		return nil
+	} else {
+		return defaultBooter.GetInstance(id)
+	}
 }
 
 func Pname() string {
