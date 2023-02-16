@@ -1,13 +1,13 @@
 
 [![](https://github.com/machbase/booter/actions/workflows/ci.yml/badge.svg)](https://github.com/MACHBASE/booter/actions/workflows/ci.yml)
 
-## install
+## Install
 
 ```sh
 go get -u github.com/machbase/booter
 ```
 
-## config file syntax
+## Config file syntax
 
 ### `define <PREFIX>`
 
@@ -42,28 +42,29 @@ define LOG {
 
 ### `module <moduleid>`
 
-booter 프로세스 내에서 호출할 booter.Boot를 구현한 모듈들을 정의한다.
+Defines the modules that implement interface `booter.Boot` to be called within the booter process.
 
-초기화하고 Start() 가 호출되는 순서는 기본적으로 파일에 기록된 순서대로이며
-별도의 priority를 지정하면 해당 순서에 따라 Start()가 호출된다. Stop()은 역순으로 호출된다.
+The order in which they are initialized and Start() is called defaults to the order in which they are written to the file.
+If you specify a different priority, Start() will be called in that order. Stop() is called in the reverse order.
 
-`module` 블럭에는 다음과 같은 값들을 설정할 수 있다.
 
-- `name` 이름을 지정한다. 다른 module에서 `inject`로 depency injection을 수행할 때 이 이름으로 대상 모듈을 지정한다.
+The following values can be set in the `module` block
 
-- `priority` 모듈을 시작하는 순서를 정수 값으로 지정한다. 작은 값일 수록 먼저 Start()된다.
+-  `name` This name specifies the target module when performing a dependency injection with `inject` from another module.
 
-- `diabled` 해당 모듈이 정의는 되어 있으나 인스턴스를 생성하거나 시작하지 않도록 disable한다.
+- `priority` Specifies the order in which modules should be started, as an integer value. Smaller values will be Start() first.
 
-- `inject <target> <field|method> { }` 해당 모듈을 대상(target) 모듈의 필드 (field)에 주입한다.
-  주입되는 시점은 모든 모듈들의 인스턴스가 생성되고 Start()가 호출되기 이전이다.
-  따라서 대상 모듈에서 Start()를 구현할 때 현재 Module의 인스턴스는 반드시 생성되어 있는 상태이지만 Start()가 된 상태인지는 순서에 대한 고려가 필요하다.
+- `diabled` Disables the module from being defined but not created or started.
 
-  `<field|method>`에는 대상 모듈의 field 또는 하나의 파라미터를 받는 setter 메서드를 지정할 수 있다.
+- `inject <target> <field|method> { }` Injects the module into a field in the target module.
+  The time of injection is before all modules are instantiated and Start() is called.
+  Therefore, when implementing Start() in the target module, the current instance of the module must have been created, but the order in which it has been started is a consideration.
 
-- `config { }` 해당 모듈의 config 객체를 정의한다.
+  In `<field|method>`, you can specify a field from the target module or a setter method that takes one parameter.
 
-module 정의 내에서는 위에서 `define`으로 정의한 변수와 미리 정의된 함수를 사용하여 구문을 작성할 수 있다.
+- `config { }` defines the config object of the target module.
+
+Inside the module definition, you can use the variables and predefined functions defined above with `define` to build your syntax.
 
 ```
 module "my_project/module_a" {
@@ -84,16 +85,16 @@ module "my_project/module_b" {
 
 ```
 
-#### functions
-- `env(name, default)` 환경변수를 반환, 없으면 default를 반환한다. ex) `env("HOME", "/usr/home")`
-- `envOrError(name)` 환경변수를 반환, 없으면 에러를 발생하고 booter가 종료된다. ex) `envOrError("APP_VALUE")`
-- `flag(name, default)` 명령행 인자를 반환, 없으면 default를 반환한다. ex) `flag("--log-dir", "./tmp")`
-- `flagOrError(name)` 명령행 인자를 반환, 없으면 에러를 발생하고 booter가 종료된다. ex)`flagOrError("--log-dir")`
-- `pname()` booter 실행시 지정된 pname을 반환한다.
-- `version()` 애플리케이션이 `booter.SetVersionString()`으로 설정한 값을 반환한다.
-- `arg(i, default)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 default를 반환한다.
-- `argOrError(i)` 명령행 인자들 중 플래그('-'로 시작하는)들을 제외한 i번째 인자를 반환, 없으면 에러를 발생한다.
-- `arglen()` 명령행 인자 수를 반환
+#### Functions
+- `env(name, default)`  Returns the  environment variable, or default if none exists. ex) `env("HOME", "/usr/home")`
+- `envOrError(name)` Returns the environment variable, or raises an error and exits the booter. ex) `envOrError("APP_VALUE")`
+- `flag(name, default)` Returns the command line argument, or default if none. ex) `flag("--log-dir", "./tmp")`
+- `flagOrError(name)` Returns command-line argument, if none, an error is raised and the booter exits. ex)`flagOrError("--log-dir")`
+- `pname()` Returns the pname specified when booter is run.
+- `version()` Returns the value set by the application with `booter.SetVersionString()`.
+- `arg(i, default)` Returns the i-th argument of the command-line arguments, excluding flags (beginning with '-'), or default if none.
+- `argOrError(i)` Returns the i-th argument of the command line, excluding flags (beginning with '-'), or an error.
+- `arglen()` Returns the number of command-line arguments.
 - `userDir()` : Get user's home directory, On Linux and macOS, it returns the $HOME environment variable.
 - `userConfDir()` : Get user's config directory, On Linux, it returns $XDG_CONFIG_HOME as specified by https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if non-empty, else $HOME/.config. On macOS, it returns $HOME/Library/Application Support.
 - `prefDir(subdir)`: Get $HOME/.config/$subdir
@@ -104,25 +105,25 @@ module "my_project/module_b" {
 - `strlen(str)`
 - `substr(str, offset, len)`
 
-애플리케이션은 `booter.Startup()`을 호출하기 전에 `booter.SetFunction(name, function.Function)`으로 추가 함수를 정의할 수 있다.
+Applications can define additional functions with `booter.SetFunction(name, function.Function)` before calling `booter.Startup()`.
 
-> 일반적으로 응용프로그램에서는 설정값을 "기본값 -> 환경변수 -> 설정파일 -> 명령행 인자" 에서 참조하는데 다음과 같이 구현할 수 있다.
+> Typically, applications refer to settings in "Defaults -> Environment Variables -> Configuration Files -> Command Line Arguments", which can be implemented as follows.
 `MyPath = flag("--my-path", env("MY_PATH", "/home/me"))}`
 
-### module 정의하기
+### Define modules
 
-직접 작성한 모듈을 booter의 config내에서 사용하기위해서는 booter가 시작되기 전에 booter의 레지스트리에 등록하는 절차가 필요하다. 일반적으로 init() 함수내에서 등록을 하도록 한다.
+In order to use your own modules in the booter's config, you need to register them in the booter's registry before the booter starts. This is usually done in the init() function.
 
-- `booter.Register(id, configFactory, instanceFactory)`를 호출하여 모듈을 등록한다.
-- 여기서 세 개의 파라미터가 필요한데
-- `id`는 해당 모듈의 식별자로 아무 문자열이나 상관없지만, 관례로 go module path를 사용한다.
-- `configFactory`는 `func() T` 함수로 해당 모듈의 config 객체의 pointer `T`를 반환하도록 한다.
-config 객체는 반환전에 default 값들을 채워서 config file에서 지정하지 않아도 디폴트값이 적용되도록 할 수 있다.
-- `instanceFactory`는 `func(T) (booter.Boot, error)` 함수로 `configFactory`에서 반환한 객체에서
-   설정파일의 `config` 블럭의 값들이 적용된 후 `instanceFactory`의 인자로 입력된다.
-   이 값을 바탕으로 모듈의 인스턴스를 생성하여 반환하거나 오류를 반환하도록 한다.
-   `instnaceFactory`의 반환 타입에서 알 수 있듯이 인스턴스는 `booter.Boot` 인터페이스를 구현해야 한다.
-- `booter.Boot`는 `Start() error` `Stop()` 두 가지 함수를 가진 인터페이스이다.
+- Register the module by calling `booter.Register(id, configFactory, instanceFactory)`.
+- It takes three parameters
+- `id` is the identifier for the module, which can be any string, but by convention is the go module path.
+- `configFactory` is a `func() T` function that returns pointer `T` to the module's config object.
+   The config object can be filled with default values before returning, so that defaults are applied even if they are not specified in the config file.
+- The `instanceFactory` is created from the object returned by the `configFactory` with the function `func(T) (booter.Boot, error)`.
+   The values in the `config` block of the configuration file are applied and then entered as arguments to `instanceFactory`.
+   Based on these values, an instance of the module is created and returned, or an error is returned.
+   As the return type of `instnaceFactory` indicates, the instance must implement the `booter.Boot` interface.
+- `Booter.Boot` is an interface with two functions: `Start() error` and `Stop()`.
 
 module example)
 
@@ -132,15 +133,16 @@ package myserver
 func init() {
     booter.Register("myproject/myserver",
     func()*Config{
-        // config factory: 디폴트 값을 반환한다.
+        // Config factory: returns default config.
         return &Config {
             Host: "127.0.0.1",
             Port: 12345,
         }
     },
     func(c *Config)(booter.Boot, error) {
-        // instance factory: booter가 설정파일의 config 블럭을 처리하여 
-        // 변경된 *Config를 입력해 주면 이에 따라 module의 instance를 생성한다.
+        // Instance factory: processes config block that is passed from booter,
+        // The received config has been updated by booter according to the config file.
+        // This function returns new instance of the module with the received config.
         return &server{
             conf: c,
         }, nil
@@ -163,9 +165,10 @@ func (this *server) Stop() {
 }
 ```
 
-### main() 정의하기
+### Define main()
 
-다음은 가장 단순형태의 booter application의 main()이다.
+
+Here's the main() of a booter application in its simplest form.
 
 ```go
 func main() {
@@ -175,25 +178,25 @@ func main() {
 }
 ```
 
-application이 `booter.Startup()`를 호출하여 booter를 시작하면
-- booter는 config 파일들을 읽어들여 모듈들의 정의를 나열하고 
-- 지정된 모듈들을 id를 기반으로 찾는다.
-- 순서대로 해당 모듈의 configFactory를 호출하여 디폴트 config 객체를 받아온 후
-- `config` 블럭에 지정된 필드들을 config 객체에 업데이트 한다.
-- 수정된 config 객체를 instanceFactory에 전달하여 해당 모듈의 인스턴들을 생성한다.
-- `inject` 블럭에 지정된 값을 기반으로 dependency injection을 수행한다.
-- 각 모듈의 `Start()`를 순서대로 호출한다.
+When an application starts the booter by calling `booter.Startup()`, 
+- booter reads the config files, lists the module definitions, and finds the specified modules based on their IDs. 
+- Finds the specified modules based on their IDs.
+- In order, it calls the configFactory of that module to get the default config object,
+- Update the config object with the fields specified in the `config` block.
+- Pass the modified config object to the instanceFactory to create instances of the module.
+- Perform dependency injection based on the values specified in the `inject` block.
+- Call each module's `Start()` in sequence.
 
-booter가 설정에 따라 application의 모듈들을 성공적으로 시작하였다면
-`booter.WaitSignal()`을 호출하여 종료 시그널을 기다린다.
-프로그램 제어 흐름은 `booter.WaitSignal()`에서 blocking된다.
-이 상태에서 booter를 종료하려면 별도의 go routine에서 `booter.NotifySignal()`을 호출하거나 `^C` 시그널을 입력하면
-`booter.WaitSignal()`이 반환되고 `booter.Shutdown()`을 통해 프로그램을 정상 종료된다.
+If the booter has successfully started the application's modules according to your settings, 
+call the `booter.WaitSignal()` to wait for a termination signal.
+The program control flow is blocked at `booter.WaitSignal()`.
+To exit the booter from this state, call `booter.NotifySignal()` in a separate go routine, or if you enter the `^C` signal, 
+`booter.WaitSignal()` is returned and the program is terminated normally via `booter.Shutdown()`.
 
-#### csutomize command line arguments
+#### Cutomize command line arguments
 
-`booter.Startup()`이 실행되면 다음과 같은 기본 명령행 인자를 바탕으로 실행된다.
-이들 중에서 `--config-dir`, `--config` 두 가지 중 하나는 필수 항목이고 그 외의 플래그는 선택사항이다.
+When `booter.Startup()` is run, it is run with the following default command line arguments.
+At least one of `--config-dir` and `--config`, is required, and the other flags are optional.
 - `--config-dir <dir>` config directory path
 - `-c, --config <file>` a single file config
 - `--pname <name>` process name
@@ -202,15 +205,17 @@ booter가 설정에 따라 application의 모듈들을 성공적으로 시작하
 - `--d, -daemon` run process in background, daemonize
 - `--help` print this message
 
-> 그 외의 응용프로그램에서 필요한 추가 플래그는 위의 functions에서 설명한 것처럼 설정파일 내에서 `flag()`로 지정하면 된다.
+> Additional flags required by other applications can be specified 
+> in the configuration file with `flag()` as described in functions above.
 
-만약 이 플래그를 다른 이름으로 변경하려면 `booter.Startup()`전에 `booter.SetFlag()`를 호출하여 변경할 수 있다.
+If you want to change this flag to a different name, 
+you can do so by calling `booter.SetFlag()` before `booter.Startup()`.
 
 ```go
 func SetFlag(flagType BootFlagType, longflag, shortflag, defaultValue string)
 ```
 
-BootFlagType은 다음과 같다.
+The `BootFlagType` is
 
 ```go
 const (
@@ -224,8 +229,9 @@ const (
 )
 ```
 
-예를 들어 디폴트 플래그 `--config` 를 `--config-file`로 변경한다면 다음과 같이 한다. 
-(shortflag를 사용하지 않으려면 "c" 대신 빈문자열 ""로 설정하면 된다.)
+For example, to change the default flag `--config` to `--config-file`, you would do the following. 
+(If you don't want to use shortflag, just set it to the empty string "" instead of "c").
+
 ```go
 booter.SetFlag(ConfigFileFlag, "config-file", "c", "./conf/default.hcl")
 ```
