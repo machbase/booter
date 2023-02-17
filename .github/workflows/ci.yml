@@ -12,12 +12,11 @@ jobs:
   builds:
     runs-on: [ ubuntu-20.04 ]
     env:
-      GOPRIVATE: "github.com/machbase/*"
       PKGNAME: "booter"
     steps:
       - name: Setup go compiler
         uses: actions/setup-go@v3
         with:
           go-version: '^1.19.6'
-      - name: Build
-        run: go test .
+      - name: Test
+        run: cd booter && go test .
