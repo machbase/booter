@@ -4,10 +4,8 @@ on:
   pull_request:
     types:
       - opened
-  push:
-    branches:
-      - '*'
-
+  merge_group:
+    types: types: [checks_requested]
 jobs:
   builds:
     runs-on: [ ubuntu-20.04 ]
