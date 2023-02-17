@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  pull_request:
+    types:
+      - opened
   push:
     branches:
       - '*'
@@ -12,16 +15,9 @@ jobs:
       GOPRIVATE: "github.com/machbase/*"
       PKGNAME: "booter"
     steps:
-      - name: Checkout
-        run: |
-          cd .. && \
-          git -C ${PKGNAME} pull origin ${{ github.ref }} || git clone --recursive git@github.com:MACHBASE/${PKGNAME}.git && \
-          cd ${PKGNAME}
       - name: Setup go compiler
         uses: actions/setup-go@v3
         with:
-          token: ${{ secrets.GIT_PASS }}
-          go-version: '^1.19.5'
+          go-version: '^1.19.6'
       - name: Build
-        run: |
-          go test .
+        run: go test .
