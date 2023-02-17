@@ -4,8 +4,6 @@ on:
   pull_request:
     types:
       - opened
-  merge_group:
-    types: types: [checks_requested]
 jobs:
   builds:
     runs-on: [ ubuntu-20.04 ]
