@@ -7,7 +7,7 @@ on:
 
 jobs:
   builds:
-    runs-on: [ self-hosted, linux, x64 ]
+    runs-on: [ ubuntu-20.04 ]
     env:
       GOPRIVATE: "github.com/machbase/*"
       PKGNAME: "booter"
