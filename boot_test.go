@@ -163,8 +163,6 @@ type Amod struct {
 
 func (am *Amod) Start() error {
 	fmt.Println("amod start")
-	fmt.Printf("    with Amod.Bmod             = %p\n", am.Bmod)
-	fmt.Printf("    with Amod.OtherNameForBmod = %p\n", am.OtherNameForBmod)
 	if am.Bmod != am.OtherNameForBmod {
 		return errors.New("amod.Bmod and amod.OtherNameForBmod has different references")
 	}

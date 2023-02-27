@@ -275,6 +275,11 @@ var GetFlag2Func = function.New(&function.Spec{
 					out = os.Args[i+1]
 				}
 				return cty.StringVal(out), nil
+			} else if strings.HasPrefix(arg, in+"=") {
+				if len(arg) >= len(in)+1 {
+					out = arg[len(in)+1:]
+					return cty.StringVal(out), nil
+				}
 			}
 		}
 		return cty.NilVal, fmt.Errorf("required flag %s missing", in)
@@ -307,6 +312,11 @@ var GetFlagFunc = function.New(&function.Spec{
 					out = os.Args[i+1]
 				}
 				break
+			} else if strings.HasPrefix(arg, in+"=") {
+				if len(arg) >= len(in)+1 {
+					out = arg[len(in)+1:]
+					break
+				}
 			}
 		}
 		return cty.StringVal(out), nil
