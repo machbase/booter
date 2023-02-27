@@ -282,7 +282,7 @@ func usage() {
 		}
 		if len(v.Short) > 0 {
 			if len(use) > 0 {
-				use = fmt.Sprintf("%s,-%s", use, v.Short)
+				use = fmt.Sprintf("%s, -%s", use, v.Short)
 			} else {
 				use = fmt.Sprintf("-%s", v.Short)
 			}
