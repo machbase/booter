@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -278,14 +277,14 @@ func usage() {
 			format = fmt.Sprintf("    %%-%ds  %s", maxlen+5, v.Help)
 		}
 		use := ""
-		if len(v.Short) > 0 {
-			use = fmt.Sprintf("-%s", v.Short)
-		}
 		if len(v.Long) > 0 {
+			use = fmt.Sprintf("--%s", v.Long)
+		}
+		if len(v.Short) > 0 {
 			if len(use) > 0 {
-				use = fmt.Sprintf("%s, --%s", use, v.Long)
+				use = fmt.Sprintf("%s,-%s", use, v.Short)
 			} else {
-				use = fmt.Sprintf("--%s", v.Long)
+				use = fmt.Sprintf("-%s", v.Short)
 			}
 		}
 		if len(v.Placeholder) > 0 {
@@ -330,43 +329,43 @@ func parseflags() {
 	}
 
 	// parse args
-	for i := 0; i < len(os.Args); i++ {
-		argn := os.Args[i]
-		argv := ""
-		if i < len(os.Args)-1 {
-			argv = os.Args[i+1]
-		}
+	parser := NewCommandLineParser(os.Args)
+	parser.AddHintBool(conf.flags[DaemonFlag].Long, conf.flags[DaemonFlag].Short, false)
+	parser.AddHintBool(conf.flags[HelpFlag].Long, conf.flags[HelpFlag].Short, false)
 
-		var matched BootFlagType = noneFlag
-		for f, v := range conf.flags {
-			if strings.HasPrefix(argn, "--") && argn[2:] == v.Long {
-				matched = f
-				break
-			} else if strings.HasPrefix(argn, "-") && argn[1:] == v.Short {
-				matched = f
-				break
-			}
-		}
+	cli, err := parser.Parse()
+	if err != nil {
+		fmt.Printf("\n Error: command line, %s\n\n", err.Error())
+		flag.Usage()
+		os.Exit(1)
+	}
 
-		switch matched {
-		case ConfigDirFlag:
-			conf.ConfDir = argv
-		case ConfigFileFlag:
-			conf.ConfFile = argv
-		case GenConfigFlag:
-			conf.GenConfig = true
-		case PnameFlag:
-			conf.Pname = argv
-		case PidFlag:
-			conf.PidFile = argv
-		case BootlogFlag:
-			conf.BootlogFile = argv
-		case DaemonFlag:
-			conf.Daemon = true
-		case HelpFlag:
-			flag.Usage()
-			os.Exit(0)
+	var stringFlag = func(t BootFlagType, def string) string {
+		f := cli.Flag(conf.flags[t].Long, conf.flags[t].Short)
+		if f == nil {
+			return def
 		}
+		return f.String(def)
+	}
+	var boolFlag = func(t BootFlagType, def bool) bool {
+		f := cli.Flag(conf.flags[t].Long, conf.flags[t].Short)
+		if f == nil {
+			return def
+		}
+		return f.Bool(def)
+	}
+	conf.ConfDir = stringFlag(ConfigDirFlag, conf.ConfDir)
+	conf.ConfFile = stringFlag(ConfigFileFlag, conf.ConfFile)
+	conf.GenConfig = boolFlag(GenConfigFlag, conf.GenConfig)
+	conf.Pname = stringFlag(PnameFlag, conf.Pname)
+	conf.PidFile = stringFlag(PidFlag, conf.PidFile)
+	conf.BootlogFile = stringFlag(BootlogFlag, conf.BootlogFile)
+	conf.Daemon = boolFlag(DaemonFlag, conf.Daemon)
+	doHelp := boolFlag(HelpFlag, false)
+
+	if doHelp {
+		flag.Usage()
+		os.Exit(0)
 	}
 
 	if len(conf.ConfDir) == 0 && len(conf.ConfFile) == 0 && len(fallbackConfigContent) == 0 {
