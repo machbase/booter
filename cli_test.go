@@ -42,3 +42,37 @@ func TestFlagParser(t *testing.T) {
 
 	require.Equal(t, 2, len(ctx.Passthrough()))
 }
+
+func TestFlagParserDeamon(t *testing.T) {
+	parser := booter.NewCommandLineParser([]string{
+		"serve",
+		"--daemon",
+		"--pid", "./tmp/pid.txt",
+		"--bootlog", "./tmp/boot.log",
+		"--log-filename=./tmp/machbase.log",
+	})
+	parser.AddHintBool("daemon", "d", false)
+	parser.AddHintBool("help", "h", false)
+	ctx, err := parser.Parse()
+	if err != nil {
+		panic(err)
+	}
+	require.Equal(t, true, ctx.Flag("daemon", "").Bool(false))
+	require.Equal(t, "./tmp/pid.txt", ctx.Flag("pid", "").String(""))
+	require.Equal(t, "./tmp/boot.log", ctx.Flag("bootlog", "s").String(""))
+	require.Equal(t, "./tmp/machbase.log", ctx.Flag("log-filename", "").String(""))
+}
+
+func TestFlagParserDeamon2(t *testing.T) {
+	parser := booter.NewCommandLineParser([]string{
+		"serve",
+		"--daemon",
+	})
+	parser.AddHintBool("daemon", "d", false)
+	parser.AddHintBool("help", "h", false)
+	ctx, err := parser.Parse()
+	if err != nil {
+		panic(err)
+	}
+	require.Equal(t, true, ctx.Flag("daemon", "").Bool(false))
+}
