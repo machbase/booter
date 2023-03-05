@@ -92,7 +92,8 @@ type clparser struct {
 }
 
 func (parser *clparser) AddHintBool(long string, short string, negatable bool) {
-	parser.boolFlags = append(parser.boolFlags, long)
+	parser.boolFlags = append(parser.boolFlags, "--"+long)
+	parser.boolFlags = append(parser.boolFlags, "-"+short)
 	if negatable {
 		parser.negativeFlags = append(parser.negativeFlags, fmt.Sprintf("no-%s", long))
 	}
@@ -215,8 +216,14 @@ func (parser *clparser) parseOne() (CommandLineToken, error) {
 
 	if !fv.hasValue {
 		boolType := false
+		whatLookingFor := ""
+		if fv.hasSingleDash {
+			whatLookingFor = "-" + fv.name
+		} else {
+			whatLookingFor = "--" + fv.name
+		}
 		for _, bf := range parser.boolFlags {
-			if bf == fv.name {
+			if bf == whatLookingFor {
 				boolType = true
 				break
 			}
