@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/zclconf/go-cty/cty/function"
@@ -270,6 +271,11 @@ func usage() {
 
 	var uses = map[BootFlagType]string{}
 	for k, v := range conf.flags {
+		if runtime.GOOS == "windows" {
+			if k == DaemonFlag || k == BootlogFlag || k == PidFlag {
+				continue
+			}
+		}
 		var format = "  %%s"
 		if len(v.Default) > 0 {
 			format = fmt.Sprintf("    %%-%ds  %s (default %s)", maxlen+5, v.Help, v.Default)
@@ -295,7 +301,11 @@ func usage() {
 	}
 
 	for i := 1; i < int(numofFlags); i++ {
-		fmt.Println(uses[BootFlagType(i)])
+		line := uses[BootFlagType(i)]
+		if len(line) == 0 {
+			continue
+		}
+		fmt.Println(line)
 	}
 }
 
